@@ -1,0 +1,2752 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistem Monitoring & Rekapitulasi Tunggakan IAK / SPP - Ma'had Imam Syafi'i Serang</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Vue.js 3 CDN -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS / XLSX CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Tesseract.js (OCR Gambar JPG/PNG) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <!-- PptxGenJS -->
+  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+  <!-- QRCode.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- FontAwesome 6 Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- FIREBASE SDK COMPAT -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', 'Plus Jakarta Sans', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    .card-sharp {
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 0.85rem;
+      box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .card-sharp:hover {
+      border-color: #059669;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 18px -4px rgba(15, 23, 42, 0.1);
+    }
+    
+    .btn-solid-3d {
+      box-shadow: 0 3px 0 0 rgba(0, 0, 0, 0.2);
+      transition: all 0.12s ease-in-out;
+    }
+    .btn-solid-3d:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 0 rgba(0, 0, 0, 0.2);
+    }
+
+    /* STEMPEL RESMI DIGITAL */
+    .stempel-digital {
+      position: relative;
+      display: inline-block;
+      padding: 6px 14px;
+      text-transform: uppercase;
+      font-weight: 900;
+      font-size: 11px;
+      border: 2px solid #059669;
+      color: #059669;
+      border-radius: 6px;
+      transform: rotate(-7deg);
+      opacity: 0.88;
+      letter-spacing: 1px;
+      user-select: none;
+    }
+
+    @media print {
+      body { background: #fff !important; color: #000 !important; }
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+      
+      .kwitansi-print-area {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 10px !important;
+        border: 2px solid #000 !important;
+      }
+
+      .thermal-58mm-print {
+        width: 48mm !important;
+        margin: 0 auto !important;
+        padding: 2px !important;
+        font-family: monospace !important;
+        font-size: 10px !important;
+        border: none !important;
+      }
+
+      .thermal-80mm-print {
+        width: 72mm !important;
+        margin: 0 auto !important;
+        padding: 5px !important;
+        font-family: monospace !important;
+        font-size: 11px !important;
+        border: none !important;
+      }
+
+      .mou-print-area, .kartu-print-area, .surat-print-area {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 20px !important;
+        border: none !important;
+        color: #000 !important;
+      }
+
+      @page { size: auto; margin: 0.8cm; }
+    }
+    .print-only { display: none; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-900 antialiased min-h-screen">
+  <div id="app" class="min-h-screen flex flex-col">
+
+    <!-- TOAST NOTIFIKASI -->
+    <div v-if="toast.show" class="fixed top-5 right-5 z-50 flex items-center gap-3 px-4 py-3 bg-emerald-800 text-white rounded-xl shadow-2xl border-2 border-emerald-400 no-print transition-all">
+      <i class="fa-solid fa-circle-check text-xl text-emerald-300"></i>
+      <div>
+        <p class="font-black text-xs">{{ toast.title }}</p>
+        <p class="text-[11px] text-emerald-100 mt-0.5">{{ toast.message }}</p>
+      </div>
+      <button @click="toast.show = false" class="ml-2 text-emerald-300 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <!-- ==================== HALAMAN LOGIN ==================== -->
+    <div v-if="!isLoggedIn" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 p-4">
+      <div class="card-sharp bg-white rounded-2xl w-full max-w-md p-8 border-2 border-emerald-600 shadow-2xl relative">
+        <div class="text-center mb-6">
+          <div class="w-20 h-20 mx-auto mb-3 rounded-2xl bg-emerald-800 text-white flex items-center justify-center shadow-md overflow-hidden border-2 border-emerald-600">
+            <img v-if="identitas.logoUrl" :src="identitas.logoUrl" class="w-full h-full object-cover">
+            <i v-else class="fa-solid fa-school text-3xl text-emerald-300"></i>
+          </div>
+          <h2 class="text-xl font-black text-slate-900 tracking-tight uppercase">{{ identitas.namaMahad }}</h2>
+          <p class="text-xs text-emerald-800 font-extrabold tracking-wider uppercase mt-1">Sistem Monitoring IAK / SPP (SI-INTAN Cloud)</p>
+        </div>
+
+        <form @submit.prevent="handleLogin" class="space-y-3.5 text-xs">
+          <div>
+            <label class="block font-extrabold text-slate-800 mb-1">Kode Cabang / Tenancy ID</label>
+            <div class="relative">
+              <i class="fa-solid fa-building-columns absolute left-3.5 top-3 text-slate-500"></i>
+              <input v-model="loginForm.tenantId" required placeholder="Contoh: pusat / cabang1" class="w-full pl-10 pr-4 py-2 bg-slate-50 border-2 border-slate-300 rounded-xl font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-600">
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-extrabold text-slate-800 mb-1">Username / Kode Akses</label>
+            <div class="relative">
+              <i class="fa-solid fa-user absolute left-3.5 top-3 text-slate-500"></i>
+              <input v-model="loginForm.username" required placeholder="Masukkan username" class="w-full pl-10 pr-4 py-2 bg-slate-50 border-2 border-slate-300 rounded-xl font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-600">
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-extrabold text-slate-800 mb-1">Kata Sandi</label>
+            <div class="relative">
+              <i class="fa-solid fa-lock absolute left-3.5 top-3 text-slate-500"></i>
+              <input :type="showPass ? 'text' : 'password'" v-model="loginForm.password" required placeholder="Masukkan kata sandi" class="w-full pl-10 pr-10 py-2 bg-slate-50 border-2 border-slate-300 rounded-xl font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-600">
+              <button type="button" @click="showPass = !showPass" class="absolute right-3 top-2 text-slate-500 hover:text-slate-800">
+                <i :class="showPass ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+              </button>
+            </div>
+          </div>
+
+          <p v-if="loginError" class="text-red-700 text-[11px] font-bold bg-red-100 p-2.5 rounded-xl border border-red-300 text-center">
+            <i class="fa-solid fa-triangle-exclamation mr-1"></i> {{ loginError }}
+          </p>
+
+          <button type="submit" class="btn-solid-3d w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-black tracking-wide flex items-center justify-center gap-2">
+            <i class="fa-solid fa-right-to-bracket"></i> MASUK APLIKASI
+          </button>
+        </form>
+
+        <div class="mt-5 pt-3 border-t border-slate-200 text-center text-[10px] text-slate-600 font-medium space-y-1">
+          <div>Tenant Default: <b>pusat</b> | Sandi: <b>admin123</b></div>
+          <div>Role: <b>bendahara</b> (Bendahara) | <b>kepsek</b> (Kepala Sekolah) | <b>admin</b> (Super)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== APLIKASI UTAMA (SETELAH LOGIN) ==================== -->
+    <div v-else class="flex min-h-screen">
+      
+      <!-- SIDEBAR -->
+      <aside v-show="!isPresentationMode" :class="isSidebarOpen ? 'w-64' : 'w-20'" class="bg-emerald-950 text-white flex flex-col justify-between transition-all duration-300 relative z-30 no-print border-r-2 border-emerald-900">
+        <div>
+          <div class="p-4 flex items-center gap-3 border-b border-emerald-800">
+            <div class="w-12 h-12 rounded-xl bg-emerald-900 border-2 border-emerald-500 flex items-center justify-center overflow-hidden flex-shrink-0">
+              <img v-if="identitas.logoUrl" :src="identitas.logoUrl" class="w-full h-full object-cover">
+              <i v-else class="fa-solid fa-school text-emerald-300 text-xl"></i>
+            </div>
+            <div v-show="isSidebarOpen" class="overflow-hidden">
+              <h1 class="font-black text-sm tracking-tight text-white leading-tight truncate">{{ identitas.namaMahad }}</h1>
+              <span class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Tenant: {{ currentTenantId }}</span>
+            </div>
+          </div>
+
+          <nav class="p-3 space-y-1">
+            <button v-for="menu in menuList" :key="menu.id" 
+              @click="changeMenu(menu.id)"
+              :class="activeMenu === menu.id ? 'bg-emerald-800 text-white border-l-4 border-emerald-400 font-black shadow-inner' : 'text-slate-300 hover:bg-emerald-900/60 hover:text-white font-bold'"
+              class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs transition">
+              <i :class="menu.icon" class="text-base w-5 text-center text-emerald-400"></i>
+              <span v-show="isSidebarOpen" class="truncate">{{ menu.label }}</span>
+            </button>
+          </nav>
+        </div>
+
+        <div class="p-3 border-t border-emerald-800 space-y-2">
+          <div v-show="isSidebarOpen" class="p-2 bg-emerald-900/70 rounded-xl border border-emerald-700/80 flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-full bg-emerald-700 border-2 border-emerald-400 overflow-hidden flex-shrink-0 flex items-center justify-center">
+              <img v-if="identitas.fotoBendaharaUrl" :src="identitas.fotoBendaharaUrl" class="w-full h-full object-cover">
+              <i v-else class="fa-solid fa-user-tie text-emerald-200 text-sm"></i>
+            </div>
+            <div class="overflow-hidden">
+              <p class="font-extrabold text-xs text-white truncate">{{ currentUser.nama }}</p>
+              <p class="text-[10px] text-emerald-300 truncate uppercase">Role: {{ currentUser.role }}</p>
+            </div>
+          </div>
+
+          <button @click="isSidebarOpen = !isSidebarOpen" class="w-full py-2 bg-emerald-900 hover:bg-emerald-850 rounded-lg text-emerald-200 text-xs font-bold flex items-center justify-center gap-2">
+            <i :class="isSidebarOpen ? 'fa-solid fa-angles-left' : 'fa-solid fa-angles-right'"></i>
+            <span v-show="isSidebarOpen">Kecilkan Menu</span>
+          </button>
+          <button @click="logout" class="w-full py-2 bg-rose-700 hover:bg-rose-800 rounded-lg text-white font-extrabold text-xs flex items-center justify-center gap-2 transition">
+            <i class="fa-solid fa-right-from-bracket"></i>
+            <span v-show="isSidebarOpen">Keluar</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- MAIN CONTENT WRAPPER -->
+      <div class="flex-1 flex flex-col min-w-0 bg-slate-100 overflow-x-hidden">
+        
+        <!-- TOPBAR -->
+        <header class="bg-white border-b-2 border-slate-200 sticky top-0 z-20 px-6 py-3 flex items-center justify-between no-print shadow-sm">
+          <div class="flex items-center gap-3">
+            <h2 class="font-black text-slate-900 text-lg md:text-xl tracking-tight">{{ currentMenuTitle }}</h2>
+            
+            <button @click="segarkanDataCloud" :disabled="isRefreshing" title="Segarkan Data Firestore" class="px-2.5 py-1 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition">
+              <i :class="isRefreshing ? 'fa-solid fa-arrows-rotate fa-spin text-emerald-600' : 'fa-solid fa-arrows-rotate text-emerald-700'"></i>
+              <span class="hidden sm:inline">{{ isRefreshing ? 'Menyinkron...' : 'Refresh Data' }}</span>
+            </button>
+
+            <span class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black border bg-emerald-50 text-emerald-800 border-emerald-300">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Tenant: {{ currentTenantId }}
+            </span>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <button @click="showSimulasiModal = true" title="Kalkulator Simulasi Subsidi & Keringanan" class="px-3 py-1.5 rounded-xl border border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-900 font-bold text-xs flex items-center gap-1.5 transition">
+              <i class="fa-solid fa-calculator text-teal-700"></i>
+              <span class="hidden sm:inline">Simulasi Subsidi</span>
+            </button>
+
+            <button @click="togglePresentationMode" title="Mode Layar Rapat" class="px-3 py-1.5 rounded-xl border border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-900 font-bold text-xs flex items-center gap-1.5 transition">
+              <i :class="isPresentationMode ? 'fa-solid fa-compress' : 'fa-solid fa-tv'"></i>
+              <span class="hidden sm:inline">{{ isPresentationMode ? 'Tutup Layar Penuh' : 'Mode Rapat' }}</span>
+            </button>
+
+            <!-- Period Selector -->
+            <div class="flex items-center gap-2 bg-slate-100 px-3.5 py-1.5 rounded-xl border border-slate-300 text-xs">
+              <i class="fa-regular fa-calendar-check text-emerald-700 font-black"></i>
+              <span class="text-slate-600 font-bold">Periode:</span>
+              <select v-model="selectedPeriode" @change="onPeriodeChange" class="bg-transparent font-extrabold text-slate-900 focus:outline-none cursor-pointer">
+                <option value="2026-08">Agustus 2026</option>
+                <option value="2026-09">September 2026</option>
+                <option value="2026-10">Oktober 2026</option>
+                <option value="2026-07">Juli 2026</option>
+                <option value="2026-06">Juni 2026</option>
+              </select>
+            </div>
+
+            <!-- Profil User Login -->
+            <div class="flex items-center gap-2 pl-3 border-l-2 border-slate-200">
+              <div class="w-8 h-8 rounded-full bg-emerald-800 border-2 border-emerald-600 overflow-hidden flex items-center justify-center text-white font-black text-xs">
+                <img v-if="identitas.fotoBendaharaUrl" :src="identitas.fotoBendaharaUrl" class="w-full h-full object-cover">
+                <span v-else>{{ currentUser.username.charAt(0).toUpperCase() }}</span>
+              </div>
+              <div class="text-left hidden sm:block">
+                <span class="block text-xs font-black text-slate-900 leading-tight">{{ currentUser.nama }}</span>
+                <span class="block text-[10px] text-emerald-700 font-extrabold uppercase">{{ currentUser.role }}</span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <!-- MAIN VIEW AREA -->
+        <main class="p-4 md:p-6 flex-1 space-y-5">
+
+          <!-- ==================== MENU 1: DASHBOARD ==================== -->
+          <div v-show="activeMenu === 'dashboard'" class="space-y-5">
+            <!-- STATS CARDS -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div class="card-sharp p-4 bg-white border-l-8 border-rose-600">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="text-[10px] font-black tracking-wider uppercase text-slate-500">Sisa Tunggakan IAK</span>
+                    <h3 class="text-xl font-black text-rose-700 mt-0.5">{{ formatRp(statUmum.totalTunggakan) }}</h3>
+                    <div class="flex items-center gap-1.5 text-[11px] mt-1.5 font-black text-rose-700">
+                      <span class="px-1.5 py-0.5 rounded text-[10px] border bg-rose-100 border-rose-300">
+                        {{ statUmum.santriMenunggak }} Santri Belum Lunas
+                      </span>
+                    </div>
+                  </div>
+                  <div class="w-12 h-12 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-md">
+                    <i class="fa-solid fa-hand-holding-dollar text-xl"></i>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card-sharp p-4 bg-white border-l-8 border-emerald-600">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="text-[10px] font-black tracking-wider uppercase text-slate-500">Realisasi Penerimaan</span>
+                    <h3 class="text-xl font-black text-emerald-700 mt-0.5">{{ formatRp(statNominal.pembayaranMasuk) }}</h3>
+                    <div class="text-[11px] text-slate-600 mt-1.5 font-bold">
+                      Target Riil: <span class="font-black text-slate-900">{{ formatRp(statNominal.targetAwal) }}</span>
+                    </div>
+                  </div>
+                  <div class="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md">
+                    <i class="fa-solid fa-circle-check text-xl"></i>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card-sharp p-4 bg-white border-l-8 border-blue-600">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="text-[10px] font-black tracking-wider uppercase text-slate-500">Tingkat Kelunasan</span>
+                    <h3 class="text-xl font-black text-blue-700 mt-0.5">{{ statUmum.persenLunas }}%</h3>
+                    <div class="text-[11px] text-slate-600 mt-1.5 font-bold">
+                      <b class="text-emerald-700">{{ statUmum.santriLunas }} Lunas</b> / <b class="text-rose-700">{{ statUmum.santriMenunggak }} Nunggak</b>
+                    </div>
+                  </div>
+                  <div class="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md">
+                    <i class="fa-solid fa-chart-pie text-xl"></i>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card-sharp p-4 bg-white border-l-8 border-amber-500">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="text-[10px] font-black tracking-wider uppercase text-slate-500">Santri Terdata</span>
+                    <h3 class="text-xl font-black text-amber-700 mt-0.5">{{ statUmum.totalSantri }} <span class="text-xs font-bold text-slate-600">Santri</span></h3>
+                    <div class="text-[11px] text-slate-600 mt-1.5 font-bold">
+                      Ruang Lingkup Cabang
+                    </div>
+                  </div>
+                  <div class="w-12 h-12 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md">
+                    <i class="fa-solid fa-graduation-cap text-xl"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CHARTS ROW 1 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 min-w-0">
+              <div class="card-sharp p-5 bg-white min-w-0 overflow-hidden">
+                <div class="flex items-center justify-between mb-3">
+                  <div>
+                    <h4 class="font-black text-sm text-slate-900 flex items-center gap-2">
+                      <i class="fa-solid fa-chart-line text-emerald-700"></i> Trend Keuangan Periode
+                    </h4>
+                    <p class="text-[11px] text-slate-600 font-medium">Realisasi penerimaan masuk vs sisa tunggakan</p>
+                  </div>
+                </div>
+                <div class="h-60 relative w-full min-w-0">
+                  <canvas id="chartTrendBulan"></canvas>
+                </div>
+              </div>
+
+              <div class="card-sharp p-5 bg-white min-w-0 overflow-hidden">
+                <div class="flex items-center justify-between mb-3">
+                  <div>
+                    <h4 class="font-black text-sm text-slate-900 flex items-center gap-2">
+                      <i class="fa-solid fa-chart-column text-blue-700"></i> Nominal Tunggakan Per Kelas (1-6)
+                    </h4>
+                    <p class="text-[11px] text-slate-600 font-medium">Akumulasi besaran nominal tiap jenjang kelas</p>
+                  </div>
+                </div>
+                <div class="h-60 relative w-full min-w-0">
+                  <canvas id="chartNominalKelas"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- CHARTS ROW 2 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div class="card-sharp p-5 bg-white flex flex-col justify-between">
+                <div>
+                  <h4 class="font-black text-sm text-slate-900 mb-1 flex items-center gap-2">
+                    <i class="fa-solid fa-pie-chart text-amber-600"></i> Durasi Bulan Tunggakan
+                  </h4>
+                  <p class="text-[11px] text-slate-600 font-medium mb-3">Pengelompokan santri berdasarkan lama nunggak</p>
+                  <div class="h-48 relative flex items-center justify-center">
+                    <canvas id="chartStatusProporsi"></canvas>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card-sharp p-5 bg-white flex flex-col justify-between">
+                <div>
+                  <h4 class="font-black text-sm text-slate-900 mb-1 flex items-center gap-2">
+                    <i class="fa-brands fa-whatsapp text-emerald-600"></i> Hasil Tindak Lanjut WA
+                  </h4>
+                  <p class="text-[11px] text-slate-600 font-medium mb-3">Respon komunikasi dengan wali santri</p>
+                  <div class="h-48 relative flex items-center justify-center">
+                    <canvas id="chartFuWaProgress"></canvas>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card-sharp p-5 bg-white flex flex-col justify-between">
+                <div>
+                  <h4 class="font-black text-sm text-slate-900 mb-1 flex items-center gap-2">
+                    <i class="fa-solid fa-school text-purple-700"></i> Rekap Tunggakan 3 Jenjang
+                  </h4>
+                  <p class="text-[11px] text-slate-600 font-medium mb-3">MMTQ Putra, MMTQ Putri, & MTTQ</p>
+                  <div class="space-y-2">
+                    <div v-for="j in rekapJenjang" :key="j.nama" class="p-2.5 bg-slate-50 rounded-lg border border-slate-300 flex items-center justify-between">
+                      <div>
+                        <span class="font-black text-xs text-slate-900 block">{{ j.nama }}</span>
+                        <span class="text-[10px] text-slate-600 font-bold">{{ j.jumlah }} Santri Menunggak</span>
+                      </div>
+                      <div class="text-right">
+                        <span class="font-black text-xs text-rose-700 block">{{ formatRp(j.nominal) }}</span>
+                        <span class="text-[9px] text-slate-500 font-bold">{{ j.totalBulan }} Bulan Tagihan</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="mt-3 pt-2.5 border-t-2 border-slate-200 flex justify-between text-xs font-black">
+                  <span class="text-slate-700">Total Akumulasi:</span>
+                  <span class="text-rose-700">{{ formatRp(statUmum.totalTunggakan) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ==================== MENU 2: PERINGATAN, JATUH TEMPO & MOU TRACKER ==================== -->
+          <div v-show="activeMenu === 'peringatan'" class="space-y-5">
+            <!-- TABEL 1: TRACKER ANGSURAN BERJADWAL (MOU) -->
+            <div class="card-sharp p-5 bg-white border-l-8 border-purple-600 space-y-4">
+              <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-purple-700 text-white flex items-center justify-center shadow-md">
+                    <i class="fa-solid fa-calendar-check text-lg"></i>
+                  </div>
+                  <div>
+                    <h4 class="font-black text-sm text-slate-900">Pelacak Angsuran Berjadwal (MOU Installment Tracker)</h4>
+                    <p class="text-xs text-slate-600 font-medium">Monitoring komitmen cicilan bertahap.</p>
+                  </div>
+                </div>
+                <span class="px-3 py-1 bg-purple-100 text-purple-900 border border-purple-300 rounded-full font-black text-xs">
+                  {{ daftarJadwalMou.length }} Komitmen Angsuran
+                </span>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs text-left">
+                  <thead class="bg-slate-100 text-slate-800 font-bold uppercase text-[10px]">
+                    <tr>
+                      <th class="py-2 px-3">Nama Santri</th>
+                      <th class="py-2 px-3">Jenjang</th>
+                      <th class="py-2 px-3">Tahap</th>
+                      <th class="py-2 px-3">Tanggal Jatuh Tempo</th>
+                      <th class="py-2 px-3 text-right">Nominal</th>
+                      <th class="py-2 px-3 text-center">Status</th>
+                      <th class="py-2 px-3 text-center">Tindakan</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-200 font-medium">
+                    <tr v-for="item in daftarJadwalMou" :key="item.key" class="hover:bg-slate-50">
+                      <td class="py-2.5 px-3 font-black text-slate-900">{{ item.nama }}</td>
+                      <td class="py-2.5 px-3">{{ item.jenjang }}</td>
+                      <td class="py-2.5 px-3 font-bold text-slate-700">Tahap {{ item.tahap }}</td>
+                      <td class="py-2.5 px-3 font-mono font-bold">
+                        <span v-if="isLewatJatuhTempo(item.tgl) && item.status !== 'Lunas'" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-black border border-rose-300 animate-pulse">
+                          <i class="fa-solid fa-triangle-exclamation"></i> {{ item.tgl }} (Lewat Jatuh Tempo!)
+                        </span>
+                        <span v-else class="text-slate-800">{{ item.tgl }}</span>
+                      </td>
+                      <td class="py-2.5 px-3 text-right font-black text-slate-900">{{ formatRp(item.nominal) }}</td>
+                      <td class="py-2.5 px-3 text-center">
+                        <span :class="item.status === 'Lunas' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300'" class="px-2 py-0.5 rounded-full text-[10px] font-black border">
+                          {{ item.status }}
+                        </span>
+                      </td>
+                      <td class="py-2.5 px-3 text-center space-x-1 whitespace-nowrap">
+                        <button v-if="item.status !== 'Lunas'" @click="tandaiMouLunas(item)" class="btn-solid-3d bg-emerald-700 hover:bg-emerald-800 text-white px-2 py-1 rounded text-[10px] font-black">
+                          <i class="fa-solid fa-check mr-0.5"></i> Tandai Lunas
+                        </button>
+                        <button @click="kirimWaMou(item)" class="btn-solid-3d bg-purple-700 hover:bg-purple-800 text-white px-2 py-1 rounded text-[10px] font-black">
+                          <i class="fa-brands fa-whatsapp mr-0.5"></i> Tagih Cicilan
+                        </button>
+                      </td>
+                    </tr>
+                    <tr v-if="daftarJadwalMou.length === 0">
+                      <td colspan="7" class="p-4 text-center text-slate-400 italic">Belum ada komitmen jadwal MOU cicilan.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- TABEL 2: KOMITMEN JANJI BAYAR PEKAN INI -->
+            <div class="card-sharp p-5 bg-white border-l-8 border-amber-500 space-y-4">
+              <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md">
+                    <i class="fa-solid fa-business-time text-lg"></i>
+                  </div>
+                  <div>
+                    <h4 class="font-black text-sm text-slate-900">Komitmen Janji Bayar Pekan Ini</h4>
+                    <p class="text-xs text-slate-600 font-medium">Santri yang menjanjikan pembayaran pada periode pekan berjalan</p>
+                  </div>
+                </div>
+                <span class="px-3 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-full font-black text-xs">
+                  {{ santriJatuhTempoPekanIni.length }} Santri
+                </span>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs text-left">
+                  <thead class="bg-slate-100 text-slate-800 font-bold uppercase text-[10px]">
+                    <tr>
+                      <th class="py-2 px-3">Nama Santri</th>
+                      <th class="py-2 px-3">Jenjang & Kls</th>
+                      <th class="py-2 px-3">Wali & No. WA</th>
+                      <th class="py-2 px-3">Tanggal Janji Bayar</th>
+                      <th class="py-2 px-3 text-right">Total Tagihan</th>
+                      <th class="py-2 px-3 text-center">Tindakan</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-200 font-medium">
+                    <tr v-for="s in santriJatuhTempoPekanIni" :key="s.id" class="hover:bg-slate-50">
+                      <td class="py-2.5 px-3 font-black text-slate-900">{{ s.nama }}</td>
+                      <td class="py-2.5 px-3">{{ s.jenjang }} - Kls {{ s.kelas }}</td>
+                      <td class="py-2.5 px-3">{{ s.namaWali }} ({{ s.hpWali }})</td>
+                      <td class="py-2.5 px-3 font-bold" :class="getJatuhTempoBadge(s.tglJanjiBayar).color">
+                        {{ s.tglJanjiBayar }} ({{ getJatuhTempoBadge(s.tglJanjiBayar).label }})
+                      </td>
+                      <td class="py-2.5 px-3 text-right font-black text-rose-700">{{ formatRp(s.besarIak * s.jumlahBulan) }}</td>
+                      <td class="py-2.5 px-3 text-center space-x-1 whitespace-nowrap">
+                        <button @click="kirimPesanWa(s)" class="btn-solid-3d bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded text-[10px] font-black inline-flex items-center gap-1">
+                          <i class="fa-brands fa-whatsapp"></i> Follow-Up WA
+                        </button>
+                        <button @click="salinTeksPesanWa(s)" class="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded text-[10px] font-bold">
+                          <i class="fa-solid fa-copy"></i> Salin
+                        </button>
+                      </td>
+                    </tr>
+                    <tr v-if="santriJatuhTempoPekanIni.length === 0">
+                      <td colspan="6" class="p-4 text-center text-slate-400 italic">Tidak ada janji bayar pada pekan ini.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- TABEL 3: DAFTAR SANTRI PIUTANG KRITIS -->
+            <div class="card-sharp p-5 bg-white border-l-8 border-rose-600 space-y-4">
+              <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-md">
+                    <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+                  </div>
+                  <div>
+                    <h4 class="font-black text-sm text-slate-900">Daftar Santri Piutang Kritis</h4>
+                    <p class="text-xs text-slate-600 font-medium">Santri dengan akumulasi lama tunggakan ≥ 4 bulan atau nominal ≥ Rp 2.000.000</p>
+                  </div>
+                </div>
+                <span class="px-3 py-1 bg-rose-100 text-rose-900 border border-rose-300 rounded-full font-black text-xs">
+                  {{ santriKritisList.length }} Santri
+                </span>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs text-left">
+                  <thead class="bg-slate-100 text-slate-800 font-bold uppercase text-[10px]">
+                    <tr>
+                      <th class="py-2 px-3">Nama Santri</th>
+                      <th class="py-2 px-3">Jenjang & Kls</th>
+                      <th class="py-2 px-3">Durasi Nunggak</th>
+                      <th class="py-2 px-3 text-right">Nominal Tunggakan</th>
+                      <th class="py-2 px-3">Status Komunikasi</th>
+                      <th class="py-2 px-3 text-center">Tindakan Lanjutan</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-200 font-medium">
+                    <tr v-for="s in santriKritisList" :key="s.id" class="hover:bg-slate-50">
+                      <td class="py-2.5 px-3 font-black text-slate-900">{{ s.nama }}</td>
+                      <td class="py-2.5 px-3">{{ s.jenjang }} - Kls {{ s.kelas }}</td>
+                      <td class="py-2.5 px-3 font-black text-rose-700">{{ s.jumlahBulan }} Bulan</td>
+                      <td class="py-2.5 px-3 text-right font-black text-rose-700">{{ formatRp(s.besarIak * s.jumlahBulan) }}</td>
+                      <td class="py-2.5 px-3">{{ s.keterangan }}</td>
+                      <td class="py-2.5 px-3 text-center space-x-1 whitespace-nowrap">
+                        <button @click="bukaModalSuratPanggilan(s)" class="btn-solid-3d bg-indigo-700 hover:bg-indigo-800 text-white px-2 py-1 rounded text-[10px] font-black inline-flex items-center gap-1">
+                          <i class="fa-solid fa-envelope-open-text"></i> Panggilan
+                        </button>
+                        <button @click="bukaModalMou(s)" class="btn-solid-3d bg-purple-700 hover:bg-purple-800 text-white px-2 py-1 rounded text-[10px] font-black inline-flex items-center gap-1">
+                          <i class="fa-solid fa-file-contract"></i> Buat MOU
+                        </button>
+                      </td>
+                    </tr>
+                    <tr v-if="santriKritisList.length === 0">
+                      <td colspan="6" class="p-4 text-center text-slate-400 italic">Tidak ada data santri dengan tunggakan kritis saat ini.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- ==================== MENU 3: DATA MASTER TUNGGAKAN ==================== -->
+          <div v-show="activeMenu === 'datamaster'" class="space-y-3">
+            <div class="card-sharp p-3 bg-white flex flex-col lg:flex-row justify-between items-center gap-3">
+              <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                <div class="relative w-full sm:w-56">
+                  <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                  <input v-model="search" placeholder="Cari santri, NIS, wali..." class="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-300 rounded-lg font-semibold text-slate-900 focus:outline-none focus:border-emerald-600">
+                </div>
+
+                <select v-model="filterJenjang" class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 bg-white focus:outline-none">
+                  <option value="">Semua Jenjang</option>
+                  <option value="MMTQ Putra">MMTQ Putra</option>
+                  <option value="MMTQ Putri">MMTQ Putri</option>
+                  <option value="MTTQ">MTTQ</option>
+                </select>
+
+                <select v-model="filterStatus" class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 bg-white focus:outline-none">
+                  <option value="">Semua Status</option>
+                  <option value="Lunas">Lunas</option>
+                  <option value="Menunggak 1 Bulan">Menunggak 1 Bulan</option>
+                  <option value="Menunggak 2-3 Bulan">Menunggak 2-3 Bulan</option>
+                  <option value="Menunggak >4 Bulan">Menunggak >4 Bulan</option>
+                </select>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
+                <label class="btn-solid-3d bg-teal-700 hover:bg-teal-800 text-white text-xs font-black px-3 py-1.5 rounded-lg cursor-pointer flex items-center gap-1.5">
+                  <i class="fa-solid fa-file-import"></i> Import Smart Billing (Excel/JPG/PNG)
+                  <input type="file" @change="handleSmartBillingMultiImport" accept=".xlsx, .xls, .csv, image/png, image/jpeg, image/jpg" class="hidden">
+                </label>
+
+                <button @click="exportExcel" class="btn-solid-3d bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                  <i class="fa-solid fa-file-excel"></i> Export Excel
+                </button>
+
+                <button @click="openModal()" class="btn-solid-3d bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                  <i class="fa-solid fa-user-plus"></i> Tambah Santri
+                </button>
+              </div>
+            </div>
+
+            <!-- OCR LOADING STATE -->
+            <div v-if="ocrLoading" class="p-3 bg-teal-50 border-2 border-teal-500 rounded-xl flex items-center gap-3 text-xs font-bold text-teal-900">
+              <i class="fa-solid fa-spinner fa-spin text-lg text-teal-600"></i>
+              <span>Sedang memproses OCR dokumen tagihan... ({{ ocrProgress }}%)</span>
+            </div>
+
+            <!-- TABEL MASTER SANTRI LENGKAP -->
+            <div class="card-sharp bg-white overflow-hidden">
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs text-left border-collapse">
+                  <thead class="bg-slate-200 text-slate-900 font-black uppercase text-[10px] border-b border-slate-300">
+                    <tr>
+                      <th class="py-2.5 px-2 text-center w-8">No</th>
+                      <th class="py-2.5 px-2.5">NIS</th>
+                      <th class="py-2.5 px-2.5">Nama Santri</th>
+                      <th class="py-2.5 px-2.5">Jenjang & Kelas</th>
+                      <th class="py-2.5 px-2.5">Wali & Kontak</th>
+                      <th class="py-2.5 px-2.5 text-right">IAK / SPP</th>
+                      <th class="py-2.5 px-2.5 text-center">Tunggakan</th>
+                      <th class="py-2.5 px-2.5 text-right">Total Tagihan</th>
+                      <th class="py-2.5 px-2.5 text-center">FU WA</th>
+                      <th class="py-2.5 px-2.5">Status Respon</th>
+                      <th class="py-2.5 px-2.5 text-center">Status</th>
+                      <th class="py-2.5 px-2.5 text-center w-64 no-print">Tindakan</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-200 font-medium text-slate-900">
+                    <tr v-for="(s, index) in filteredSantri" :key="s.id" class="hover:bg-slate-50 transition-colors">
+                      <td class="py-2 px-2 text-center text-slate-500 font-bold">{{ index + 1 }}</td>
+                      <td class="py-2 px-2.5 font-mono font-bold text-slate-600 text-[11px]">{{ s.nis }}</td>
+                      <td class="py-2 px-2.5">
+                        <span class="font-black text-slate-900 text-xs block leading-tight">{{ s.nama }}</span>
+                      </td>
+                      <td class="py-2 px-2.5 whitespace-nowrap">
+                        <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 font-black text-[10px] border border-emerald-300">
+                          {{ s.jenjang }} - Kls {{ s.kelas }}
+                        </span>
+                      </td>
+                      <td class="py-2 px-2.5">
+                        <span class="font-bold block leading-tight">{{ s.namaWali }}</span>
+                        <span class="text-slate-500 text-[10px] font-mono"><i class="fa-brands fa-whatsapp text-emerald-600 mr-1"></i>{{ s.hpWali }}</span>
+                      </td>
+                      <td class="py-2 px-2.5 text-right font-bold text-[11px]">{{ formatRp(s.besarIak) }}</td>
+                      <td class="py-2.5 px-2.5 text-center whitespace-nowrap">
+                        <span class="font-black text-slate-900 block leading-tight">{{ s.jumlahBulan }} Bulan</span>
+                        <span class="text-[9px] text-slate-500 font-medium block truncate max-w-[110px]">{{ s.bulanMenunggak || '-' }}</span>
+                      </td>
+                      <td class="py-2.5 px-2.5 text-right font-black text-rose-700 text-xs">{{ formatRp(s.besarIak * s.jumlahBulan) }}</td>
+                      <td class="py-2.5 px-2.5 text-center whitespace-nowrap">
+                        <span :class="s.fuWa === 'Dikirim' ? 'bg-blue-100 text-blue-900 border border-blue-400' : 'bg-slate-200 text-slate-700 border border-slate-300'" class="px-2 py-0.5 rounded-full text-[9px] font-black">
+                          {{ s.fuWa }}
+                        </span>
+                      </td>
+                      <td class="py-2.5 px-2.5">
+                        <span class="font-bold text-slate-900 block leading-tight text-[11px]">{{ s.keterangan }}</span>
+                        <span v-if="s.tglJanjiBayar" class="text-[9px] text-amber-700 font-black block leading-tight"><i class="fa-regular fa-clock mr-1"></i>{{ s.tglJanjiBayar }}</span>
+                      </td>
+                      <td class="py-2.5 px-2.5 text-center whitespace-nowrap">
+                        <span :class="getStatusBadgeClass(s.jumlahBulan)" class="px-2 py-0.5 rounded-full text-[9px] font-black border inline-block">
+                          {{ getStatusText(s.jumlahBulan) }}
+                        </span>
+                      </td>
+                      
+                      <!-- TINDAKAN LENGKAP -->
+                      <td class="py-2 px-2.5 text-center no-print whitespace-nowrap">
+                        <div class="inline-flex items-center gap-1">
+                          <!-- 1. Kirim Pesan Tagihan WA -->
+                          <button v-if="s.jumlahBulan > 0" @click="kirimPesanWa(s)" type="button" title="Kirim Tagihan WhatsApp" class="btn-solid-3d bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[10px] font-black inline-flex items-center gap-1 cursor-pointer">
+                            <i class="fa-brands fa-whatsapp text-xs"></i> Tagih
+                          </button>
+                          
+                          <!-- 2. Salin Teks Pesan ke Clipboard -->
+                          <button @click="salinTeksPesanWa(s)" type="button" title="Salin Teks Pesan Tagihan ke Clipboard" class="w-7 h-7 flex items-center justify-center rounded border border-slate-300 text-slate-700 hover:bg-slate-100">
+                            <i class="fa-solid fa-copy text-[11px]"></i>
+                          </button>
+
+                          <!-- 3. Cetak & Edit Surat Panggilan Wali -->
+                          <button @click="bukaModalSuratPanggilan(s)" type="button" title="Cetak Surat Panggilan Resmi Wali" class="w-7 h-7 flex items-center justify-center rounded border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100">
+                            <i class="fa-solid fa-envelope-open-text text-[11px]"></i>
+                          </button>
+
+                          <!-- 4. Cetak & Edit Surat MOU Cicilan -->
+                          <button @click="bukaModalMou(s)" type="button" title="Surat Kesepakatan Cicilan (MOU)" class="w-7 h-7 flex items-center justify-center rounded border border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100">
+                            <i class="fa-solid fa-file-contract text-[11px]"></i>
+                          </button>
+
+                          <!-- 5. Histori & Log Interaksi -->
+                          <button @click="bukaModalLogSantri(s)" type="button" title="Histori & Log Interaksi Santri" class="w-7 h-7 flex items-center justify-center rounded border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100">
+                            <i class="fa-solid fa-clock-rotate-left text-[11px]"></i>
+                          </button>
+
+                          <!-- 6. Edit Data Santri -->
+                          <button @click="openModal(s)" type="button" title="Edit Data Santri" class="w-7 h-7 flex items-center justify-center rounded border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100">
+                            <i class="fa-solid fa-pen-to-square text-[11px]"></i>
+                          </button>
+                          
+                          <!-- 7. Hapus Data Santri -->
+                          <button @click="hapusData(s.id)" type="button" title="Hapus Data Santri" class="w-7 h-7 flex items-center justify-center rounded border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100">
+                            <i class="fa-solid fa-trash text-[11px]"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr v-if="filteredSantri.length === 0">
+                      <td colspan="12" class="p-8 text-center text-slate-500 italic">
+                        Belum ada data santri pada sistem tenant [<b>{{ currentTenantId }}</b>]. Silakan gunakan tombol <b>Tambah Santri</b> atau <b>Import Smart Billing</b> untuk memulai.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ==================== MENU 4: TRANSAKSI & KWITANSI ==================== -->
+          <div v-show="activeMenu === 'transaksi'" class="space-y-4">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              <div class="card-sharp bg-white p-4 space-y-3">
+                <h4 class="font-black text-sm text-slate-900 flex items-center gap-2 pb-2 border-b-2 border-slate-200">
+                  <i class="fa-solid fa-receipt text-emerald-700"></i> Catat Pembayaran / Cicilan IAK
+                </h4>
+                
+                <form @submit.prevent="simpanTransaksi" class="space-y-2.5 text-xs">
+                  <div>
+                    <label class="block font-black text-slate-800 mb-1">Pilih Santri</label>
+                    <select v-model="formTransaksi.santriId" @change="onSelectSantriTransaksi" required class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-bold text-slate-900 focus:outline-none focus:border-emerald-600">
+                      <option value="">-- Pilih Santri Menunggak --</option>
+                      <option v-for="s in santriList.filter(x => x.jumlahBulan > 0)" :key="s.id" :value="s.id">
+                        {{ s.nama }} ({{ s.jenjang }} - Kls {{ s.kelas }}) - Tagihan: {{ formatRp(s.besarIak * s.jumlahBulan) }}
+                      </option>
+                    </select>
+                  </div>
+
+                  <div v-if="santriTerpilihTransaksi" class="p-2.5 bg-slate-100 rounded-lg text-slate-800 border border-slate-300 space-y-1 text-xs">
+                    <div><b>Wali:</b> {{ santriTerpilihTransaksi.namaWali }} ({{ santriTerpilihTransaksi.hpWali }})</div>
+                    <div><b>Sisa Nunggak:</b> {{ santriTerpilihTransaksi.jumlahBulan }} Bulan ({{ formatRp(santriTerpilihTransaksi.besarIak * santriTerpilihTransaksi.jumlahBulan) }})</div>
+                  </div>
+
+                  <div>
+                    <label class="block font-black text-slate-800 mb-1">Nominal Masuk (Rp)</label>
+                    <input type="number" v-model="formTransaksi.nominal" required min="1000" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 font-black text-slate-900 focus:outline-none focus:border-emerald-600">
+                  </div>
+
+                  <div>
+                    <label class="block font-black text-slate-800 mb-1">Pengurangan Jumlah Bulan Nunggak</label>
+                    <input type="number" v-model="formTransaksi.kurangBulan" min="0" required class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 font-black text-slate-900 focus:outline-none focus:border-emerald-600">
+                    <span class="text-[10px] text-slate-500 font-bold">Isi 1 bila melunasi 1 bulan, atau 0 jika cicilan parsial.</span>
+                  </div>
+
+                  <div>
+                    <label class="block font-black text-slate-800 mb-1">Metode Pembayaran</label>
+                    <select v-model="formTransaksi.metode" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-bold text-slate-900 focus:outline-none focus:border-emerald-600">
+                      <option value="Transfer Smart Billing">Transfer Smart Billing / VA</option>
+                      <option value="Tunai ke Bendahara">Tunai ke Bendahara</option>
+                      <option value="Transfer Rekening Yayasan">Transfer Rekening Bank</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label class="block font-black text-slate-800 mb-1">Catatan / Bukti TF</label>
+                    <input v-model="formTransaksi.catatan" placeholder="Contoh: Bukti TF #991" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 font-semibold text-slate-900 focus:outline-none">
+                  </div>
+
+                  <button type="submit" class="btn-solid-3d w-full py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-black flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-floppy-disk"></i> Simpan Transaksi Masuk
+                  </button>
+                </form>
+              </div>
+
+              <!-- Tabel Mutasi & Tombol Cetak Kwitansi/Thermal -->
+              <div class="lg:col-span-2 card-sharp bg-white p-4 space-y-3">
+                <div class="flex items-center justify-between pb-2 border-b-2 border-slate-200">
+                  <h4 class="font-black text-sm text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-blue-700"></i> Mutasi Pembayaran Masuk
+                  </h4>
+                  <span class="text-xs font-black text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded border border-emerald-300">
+                    Total: {{ formatRp(totalNominalTransaksi) }}
+                  </span>
+                </div>
+
+                <div class="overflow-x-auto">
+                  <table class="w-full text-xs text-left">
+                    <thead class="bg-slate-200 text-slate-800 font-black uppercase text-[10px]">
+                      <tr>
+                        <th class="py-2 px-2.5">Tanggal</th>
+                        <th class="py-2 px-2.5">Nama Santri</th>
+                        <th class="py-2 px-2.5">Jenjang</th>
+                        <th class="py-2 px-2.5 text-right">Nominal</th>
+                        <th class="py-2 px-2.5">Metode</th>
+                        <th class="py-2 px-2.5 text-center">Cetak Bukti</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 font-semibold text-slate-900">
+                      <tr v-for="t in riwayatTransaksi" :key="t.id" class="hover:bg-slate-50">
+                        <td class="py-1.5 px-2.5 font-mono font-bold text-slate-600">{{ t.tanggal }}</td>
+                        <td class="py-1.5 px-2.5 font-black text-slate-900">{{ t.namaSantri }}</td>
+                        <td class="py-1.5 px-2.5">{{ t.jenjang }}</td>
+                        <td class="py-1.5 px-2.5 text-right font-black text-emerald-700">{{ formatRp(t.nominal) }}</td>
+                        <td class="py-1.5 px-2.5"><span class="px-2 py-0.5 rounded bg-slate-200 text-slate-800 font-bold text-[9px]">{{ t.metode }}</span></td>
+                        <td class="py-1.5 px-2.5 text-center space-x-1 whitespace-nowrap">
+                          <button @click="bukaModalKwitansi(t, 'resmi')" title="Kwitansi Resmi A4" class="btn-solid-3d px-2 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-[10px] font-bold">
+                            <i class="fa-solid fa-file-invoice mr-1"></i> Kwitansi
+                          </button>
+                          <button @click="bukaModalKwitansi(t, 'thermal')" title="Struk Kasir Thermal" class="btn-solid-3d px-2 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded text-[10px] font-bold">
+                            <i class="fa-solid fa-print mr-1"></i> Thermal
+                          </button>
+                        </td>
+                      </tr>
+                      <tr v-if="riwayatTransaksi.length === 0">
+                        <td colspan="6" class="p-6 text-center text-slate-500 font-bold italic">Belum ada transaksi pembayaran yang dicatat.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ==================== MENU 5: ACTIVITY LOG (AUDIT) ==================== -->
+          <div v-show="activeMenu === 'activitylog'" class="space-y-4">
+            <div class="card-sharp bg-white p-5 space-y-4">
+              <div class="flex items-center justify-between pb-3 border-b-2 border-slate-200">
+                <div>
+                  <h4 class="font-black text-sm text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-purple-700"></i> Riwayat Aktivitas & Audit Log Keuangan
+                  </h4>
+                  <p class="text-xs text-slate-600 font-medium">Pemantauan aktivitas operasional keuangan bendahara</p>
+                </div>
+                <button @click="eksporAuditLogExcel" class="btn-solid-3d bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                  <i class="fa-solid fa-file-excel"></i> Ekspor ke Excel
+                </button>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs text-left border-collapse">
+                  <thead class="bg-slate-100 text-slate-800 font-bold uppercase text-[10px] border-b border-slate-300">
+                    <tr>
+                      <th class="py-2 px-3 text-center w-8">No</th>
+                      <th class="py-2 px-3">Waktu</th>
+                      <th class="py-2 px-3">Nama Santri / NIS</th>
+                      <th class="py-2 px-3">Jenjang</th>
+                      <th class="py-2 px-3">Jenis Aktivitas</th>
+                      <th class="py-2 px-3">Rincian / Keterangan</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-200 font-medium text-slate-900">
+                    <tr v-for="(log, idx) in daftarSemuaLogAktivitas" :key="idx" class="hover:bg-slate-50">
+                      <td class="py-2 px-3 text-center text-slate-500 font-bold">{{ idx + 1 }}</td>
+                      <td class="py-2 px-3 font-mono text-[11px] text-slate-600">{{ log.waktu }}</td>
+                      <td class="py-2 px-3 font-black">{{ log.namaSantri }} <span class="text-slate-400 font-mono text-[10px]">({{ log.nis }})</span></td>
+                      <td class="py-2 px-3">{{ log.jenjang }}</td>
+                      <td class="py-2 px-3 font-bold text-purple-800">{{ log.judul }}</td>
+                      <td class="py-2 px-3 text-slate-700">{{ log.deskripsi }}</td>
+                    </tr>
+                    <tr v-if="daftarSemuaLogAktivitas.length === 0">
+                      <td colspan="6" class="p-6 text-center text-slate-400 italic">Belum ada catatan aktivitas di log audit.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ==================== MENU 6: TEMPLATE WHATSAPP ==================== -->
+          <div v-show="activeMenu === 'templatewa'" class="space-y-4">
+            <div class="card-sharp bg-white p-5 max-w-4xl space-y-4">
+              <div class="flex items-center justify-between pb-2 border-b-2 border-slate-200">
+                <div>
+                  <h4 class="font-black text-sm text-slate-900 flex items-center gap-2">
+                    <i class="fa-brands fa-whatsapp text-emerald-600"></i> Pengaturan Template Pesan WhatsApp
+                  </h4>
+                  <p class="text-xs text-slate-600 font-medium">Sesuaikan redaksi pesan otomatis sesuai kebutuhan penagihan</p>
+                </div>
+                <button @click="resetTemplateWaDefault" class="text-xs font-bold text-rose-600 hover:underline">
+                  <i class="fa-solid fa-rotate-left mr-1"></i>Reset ke Default
+                </button>
+              </div>
+
+              <div class="space-y-3 text-xs font-bold text-slate-800">
+                <div>
+                  <label class="block mb-1 text-slate-900">1. Pesan Pengingat Ramah (Tunggakan 1 Bulan)</label>
+                  <textarea v-model="templateWa.ramah" rows="4" class="w-full border-2 border-slate-300 rounded-lg p-2.5 font-mono text-xs focus:outline-none focus:border-emerald-600"></textarea>
+                </div>
+
+                <div>
+                  <label class="block mb-1 text-slate-900">2. Pesan Penagihan Intensif / MOU (Tunggakan >3 Bulan)</label>
+                  <textarea v-model="templateWa.intensif" rows="4" class="w-full border-2 border-slate-300 rounded-lg p-2.5 font-mono text-xs focus:outline-none focus:border-emerald-600"></textarea>
+                </div>
+
+                <div>
+                  <label class="block mb-1 text-slate-900">3. Pesan Ucapan Terima Kasih Pelunasan</label>
+                  <textarea v-model="templateWa.lunas" rows="3" class="w-full border-2 border-slate-300 rounded-lg p-2.5 font-mono text-xs focus:outline-none focus:border-emerald-600"></textarea>
+                </div>
+
+                <button @click="simpanTemplateWa" class="btn-solid-3d py-2 px-5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-black flex items-center gap-2">
+                  <i class="fa-solid fa-floppy-disk"></i> Simpan Template Pesan
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ==================== MENU 7: LAPORAN & PRESENTASI ==================== -->
+          <div v-show="activeMenu === 'laporan'" class="space-y-4">
+            <div class="card-sharp bg-white p-3.5 flex flex-col sm:flex-row justify-between items-center gap-3 no-print">
+              <div>
+                <h4 class="font-black text-sm text-slate-900">Download Laporan Rapat & Eksekutif</h4>
+                <p class="text-xs text-slate-600 font-semibold">Siap dilaporkan pada rapat bulanan bersama Kepala Sekolah & Pengurus</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button @click="downloadPPTXRapat" class="btn-solid-3d bg-amber-600 hover:bg-amber-700 text-white text-xs font-black px-3.5 py-2 rounded-lg flex items-center gap-1.5">
+                  <i class="fa-solid fa-file-powerpoint text-sm"></i> Download PPTX
+                </button>
+                <button @click="cetakLaporanPDF" class="btn-solid-3d bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black px-3.5 py-2 rounded-lg flex items-center gap-1.5">
+                  <i class="fa-solid fa-print text-sm"></i> Cetak / Simpan PDF
+                </button>
+              </div>
+            </div>
+
+            <!-- SHEET LAPORAN RESMI (A4 LANDSCAPE) -->
+            <div class="card-sharp bg-white p-8 border-2 border-slate-300 space-y-5 text-slate-900 relative overflow-hidden" id="printableArea">
+              <div class="border-b-4 border-slate-900 pb-3 flex items-center justify-between gap-4">
+                <div class="w-16 h-16 flex-shrink-0 flex items-center justify-center">
+                  <img v-if="identitas.logoUrl" :src="identitas.logoUrl" class="max-h-full max-w-full object-contain">
+                  <i v-else class="fa-solid fa-school text-4xl text-emerald-900"></i>
+                </div>
+                <div class="text-center flex-1">
+                  <h2 class="text-lg font-black text-slate-900 tracking-wider uppercase leading-tight">{{ identitas.namaMahad }}</h2>
+                  <p class="text-[11px] text-slate-700 font-bold mt-0.5">{{ identitas.alamat }} | Telp: {{ identitas.kontak }}</p>
+                  <h3 class="text-xs font-black text-emerald-900 mt-1 uppercase tracking-wide">
+                    LAPORAN MONITORING & REKAPITULASI TUNGGAKAN IAK / SPP
+                  </h3>
+                  <p class="text-[10px] text-slate-700 font-bold">Periode Evaluasi: {{ getNamaBulanPeriode(selectedPeriode) }}</p>
+                </div>
+                <div class="w-16 h-16 flex-shrink-0"></div>
+              </div>
+
+              <!-- RINGKASAN EKSEKUTIF -->
+              <div class="bg-slate-100 p-3 rounded-lg border border-slate-300 space-y-2">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                  <div class="bg-white p-2 rounded border border-slate-300">
+                    <span class="text-slate-600 block text-[9px] uppercase font-bold">Target Riil Bersih</span>
+                    <span class="font-black text-xs text-slate-900">{{ formatRp(statNominal.targetAwal) }}</span>
+                  </div>
+                  <div class="bg-white p-2 rounded border border-slate-300">
+                    <span class="text-slate-600 block text-[9px] uppercase font-bold">Penerimaan Masuk</span>
+                    <span class="font-black text-xs text-emerald-800">{{ formatRp(statNominal.pembayaranMasuk) }} ({{ statNominal.persenBerhasil }}%)</span>
+                  </div>
+                  <div class="bg-white p-2 rounded border border-slate-300">
+                    <span class="text-slate-600 block text-[9px] uppercase font-bold">Sisa Tunggakan</span>
+                    <span class="font-black text-xs text-rose-700">{{ formatRp(statUmum.totalTunggakan) }}</span>
+                  </div>
+                  <div class="bg-white p-2 rounded border border-slate-300">
+                    <span class="text-slate-600 block text-[9px] uppercase font-bold">Kelunasan</span>
+                    <span class="font-black text-xs text-blue-800">{{ statUmum.persenLunas }}%</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- TANDA TANGAN RESMI KEPALA SEKOLAH & BENDAHARA -->
+              <div class="pt-6 grid grid-cols-2 gap-8 text-xs text-center relative">
+                <div class="space-y-12">
+                  <p class="font-bold">Mengetahui,<br><b class="text-slate-900">Kepala Sekolah</b></p>
+                  <div>
+                    <p class="font-black text-slate-900 border-b-2 border-slate-900 inline-block px-8 pb-0.5">{{ identitas.namaKepalaSekolah }}</p>
+                    <p class="text-slate-700 font-bold mt-1">NIP/NIY. {{ identitas.niyKepalaSekolah }}</p>
+                  </div>
+                </div>
+
+                <div class="space-y-12 relative">
+                  <p class="font-bold">Serang, {{ getTanggalHariIni() }}<br><b class="text-slate-900">Bendahara Keuangan Jenjang</b></p>
+                  
+                  <div class="absolute left-1/2 -top-2 -translate-x-1/2 pointer-events-none">
+                    <span class="stempel-digital">
+                      <i class="fa-solid fa-stamp mr-1"></i> VERIFIED & AUDITED
+                    </span>
+                  </div>
+
+                  <div>
+                    <p class="font-black text-slate-900 border-b-2 border-slate-900 inline-block px-8 pb-0.5">{{ identitas.namaBendahara }}</p>
+                    <p class="text-slate-700 font-bold mt-1">NIP/NIY. {{ identitas.niyBendahara }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ==================== MENU 8: BACKUP DATABASE (JSON) ==================== -->
+          <div v-show="activeMenu === 'backup'" class="space-y-4">
+            <div class="card-sharp bg-white p-5 max-w-3xl space-y-4">
+              <div>
+                <h4 class="font-black text-sm text-slate-900 flex items-center gap-2">
+                  <i class="fa-solid fa-database text-emerald-700"></i> Pencadangan Basis Data & Pemulihan (JSON)
+                </h4>
+                <p class="text-xs text-slate-600 font-medium">Data secara otomatis disinkronkan ke Cloud Firebase dan dicadangkan lokal</p>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                <div class="p-4 bg-emerald-50 rounded-xl border-2 border-emerald-300 space-y-2">
+                  <div class="w-10 h-10 rounded-lg bg-emerald-700 text-white flex items-center justify-center">
+                    <i class="fa-solid fa-cloud-arrow-down text-lg"></i>
+                  </div>
+                  <h5 class="font-black text-sm text-emerald-950">Backup Database (Download)</h5>
+                  <p class="text-xs text-emerald-800">Unduh seluruh berkas data lokal menjadi file `.json` untuk disimpan di komputer kerja.</p>
+                  <button @click="downloadBackupJson" class="btn-solid-3d w-full py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-black text-xs flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-download"></i> Unduh File Backup JSON
+                  </button>
+                </div>
+
+                <div class="p-4 bg-blue-50 rounded-xl border-2 border-blue-300 space-y-2">
+                  <div class="w-10 h-10 rounded-lg bg-blue-700 text-white flex items-center justify-center">
+                    <i class="fa-solid fa-cloud-arrow-up text-lg"></i>
+                  </div>
+                  <h5 class="font-black text-sm text-blue-950">Restore Database (Pulihkan)</h5>
+                  <p class="text-xs text-blue-800">Pilih berkas backup `.json` sebelumnya untuk memulihkan seluruh data santri dan riwayat transaksi.</p>
+                  <label class="btn-solid-3d w-full py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-black text-xs flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-upload"></i> Pilih File Backup JSON
+                    <input type="file" @change="restoreBackupJson" accept=".json" class="hidden">
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ==================== MENU 9: IDENTITAS & SETTING QRIS / VA ==================== -->
+          <div v-show="activeMenu === 'identitas'" class="space-y-4">
+            <div class="card-sharp bg-white p-5 max-w-4xl space-y-4">
+              <div>
+                <h4 class="font-black text-sm text-slate-900 flex items-center gap-2">
+                  <i class="fa-solid fa-school text-emerald-700"></i> Pengaturan Lembaga & Profil Bendahara
+                </h4>
+                <p class="text-xs text-slate-600 font-medium">Ubah informasi identitas madrasah, logo resmi, foto bendahara, dan rekening/QRIS pembayaran</p>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border-2 border-slate-300">
+                  <div class="w-16 h-16 rounded-xl bg-white border-2 border-dashed border-emerald-500 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    <img v-if="identitas.logoUrl" :src="identitas.logoUrl" class="w-full h-full object-contain">
+                    <i v-else class="fa-solid fa-image text-2xl text-slate-400"></i>
+                  </div>
+                  <div>
+                    <h5 class="font-black text-xs text-slate-900">Logo Lembaga / Yayasan</h5>
+                    <p class="text-[10px] text-slate-600 mb-1.5">Tampil di kop surat laporan & presentasi</p>
+                    <label class="btn-solid-3d bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-2.5 py-1 rounded-lg cursor-pointer inline-flex items-center gap-1">
+                      <i class="fa-solid fa-cloud-arrow-up"></i> Pilih Logo
+                      <input type="file" @change="onLogoUpload" accept="image/*" class="hidden">
+                    </label>
+                    <button v-if="identitas.logoUrl" @click="hapusLogo" class="ml-2 text-xs text-rose-600 font-bold hover:underline">Hapus</button>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border-2 border-slate-300">
+                  <div class="w-16 h-16 rounded-full bg-white border-2 border-dashed border-teal-500 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    <img v-if="identitas.fotoBendaharaUrl" :src="identitas.fotoBendaharaUrl" class="w-full h-full object-cover">
+                    <i v-else class="fa-solid fa-user text-2xl text-slate-400"></i>
+                  </div>
+                  <div>
+                    <h5 class="font-black text-xs text-slate-900">Foto Profil Bendahara</h5>
+                    <p class="text-[10px] text-slate-600 mb-1.5">Tampil di sidebar & topbar admin</p>
+                    <label class="btn-solid-3d bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold px-2.5 py-1 rounded-lg cursor-pointer inline-flex items-center gap-1">
+                      <i class="fa-solid fa-camera"></i> Pilih Foto
+                      <input type="file" @change="onFotoBendaharaUpload" accept="image/*" class="hidden">
+                    </label>
+                    <button v-if="identitas.fotoBendaharaUrl" @click="hapusFotoBendahara" class="ml-2 text-xs text-rose-600 font-bold hover:underline">Hapus</button>
+                  </div>
+                </div>
+              </div>
+
+              <form @submit.prevent="simpanIdentitas" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-bold text-slate-800">
+                <div class="md:col-span-2">
+                  <label class="block mb-1">Nama Ma'had / Lembaga</label>
+                  <input v-model="identitas.namaMahad" required class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 font-bold text-slate-900 focus:outline-none focus:border-emerald-600">
+                </div>
+
+                <div class="md:col-span-2">
+                  <label class="block mb-1">Alamat Lengkap</label>
+                  <input v-model="identitas.alamat" required class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 font-semibold text-slate-900 focus:outline-none focus:border-emerald-600">
+                </div>
+
+                <div>
+                  <label class="block mb-1">No. Kontak / Telp</label>
+                  <input v-model="identitas.kontak" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 font-semibold text-slate-900 focus:outline-none">
+                </div>
+
+                <div>
+                  <label class="block mb-1">Email Lembaga</label>
+                  <input v-model="identitas.email" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 font-semibold text-slate-900 focus:outline-none">
+                </div>
+
+                <div class="md:col-span-2 bg-emerald-50 p-3 rounded-xl border border-emerald-300 space-y-2">
+                  <span class="text-xs font-black text-emerald-950 flex items-center gap-1.5"><i class="fa-solid fa-qrcode"></i> Info Pembayaran QRIS / Rekening Bank</span>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label class="block mb-1 text-[11px] text-slate-700">Payload QRIS / Barcode</label>
+                      <input v-model="identitas.qrisPayload" placeholder="Masukkan payload QRIS" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 bg-white">
+                    </div>
+                    <div>
+                      <label class="block mb-1 text-[11px] text-slate-700">Nomor Rekening Lembaga</label>
+                      <input v-model="identitas.rekeningYayasan" placeholder="Contoh: BSI 712-3456-789" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 bg-white">
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block mb-1">Nama Kepala Sekolah</label>
+                  <input v-model="identitas.namaKepalaSekolah" required class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 font-black text-slate-900 focus:outline-none">
+                </div>
+
+                <div>
+                  <label class="block mb-1">NIP/NIY Kepala Sekolah</label>
+                  <input v-model="identitas.niyKepalaSekolah" required class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 font-mono font-bold text-slate-900 focus:outline-none">
+                </div>
+
+                <div>
+                  <label class="block mb-1">Nama Bendahara Jenjang</label>
+                  <input v-model="identitas.namaBendahara" required class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 font-black text-slate-900 focus:outline-none">
+                </div>
+
+                <div>
+                  <label class="block mb-1">NIP/NIY Bendahara</label>
+                  <input v-model="identitas.niyBendahara" required class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 font-mono font-bold text-slate-900 focus:outline-none">
+                </div>
+
+                <div class="md:col-span-2 pt-1">
+                  <button type="submit" class="btn-solid-3d py-2 px-5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-black flex items-center gap-2">
+                    <i class="fa-solid fa-circle-check"></i> Simpan Profil Identitas
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- ==================== MENU 10: GANTI PASSWORD ==================== -->
+          <div v-show="activeMenu === 'password'" class="space-y-4">
+            <div class="card-sharp bg-white p-5 max-w-md space-y-3">
+              <div>
+                <h4 class="font-black text-sm text-slate-900 flex items-center gap-2">
+                  <i class="fa-solid fa-key text-amber-600"></i> Pengaturan Kata Sandi
+                </h4>
+                <p class="text-xs text-slate-600 font-semibold">Perbarui kata sandi akses akun secara berkala</p>
+              </div>
+
+              <form @submit.prevent="simpanPasswordBaru" class="space-y-2.5 text-xs font-bold text-slate-800">
+                <div>
+                  <label class="block mb-1">Kata Sandi Saat Ini</label>
+                  <input type="password" v-model="passForm.oldPass" required class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-emerald-600">
+                </div>
+
+                <div>
+                  <label class="block mb-1">Kata Sandi Baru</label>
+                  <input type="password" v-model="passForm.newPass" required class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-emerald-600">
+                </div>
+
+                <div>
+                  <label class="block mb-1">Konfirmasi Kata Sandi Baru</label>
+                  <input type="password" v-model="passForm.confirmPass" required class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-emerald-600">
+                </div>
+
+                <p v-if="passMsg.text" :class="passMsg.success ? 'text-emerald-800 bg-emerald-100 border-emerald-300' : 'text-rose-800 bg-rose-100 border-rose-300'" class="p-2 rounded border font-bold text-xs">
+                  {{ passMsg.text }}
+                </p>
+
+                <button type="submit" class="btn-solid-3d w-full py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg font-black flex items-center justify-center gap-2">
+                  <i class="fa-solid fa-shield-halved"></i> Perbarui Kata Sandi
+                </button>
+              </form>
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL 1: SIMULASI SUBSIDI & KERINGANAN ==================== -->
+    <div v-if="showSimulasiModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 no-print">
+      <div class="card-sharp bg-white rounded-2xl w-full max-w-md overflow-hidden border-2 border-teal-600 shadow-2xl">
+        <div class="bg-teal-900 px-5 py-3.5 text-white flex justify-between items-center">
+          <h3 class="font-black text-sm flex items-center gap-2">
+            <i class="fa-solid fa-calculator text-teal-300"></i> Kalkulator Simulasi Subsidi & Keringanan
+          </h3>
+          <button @click="showSimulasiModal = false" class="text-teal-300 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+
+        <div class="p-5 space-y-3 text-xs font-bold text-slate-800">
+          <div>
+            <label class="block mb-1">Nominal IAK / SPP Normal (Rp)</label>
+            <input type="number" v-model="simulasi.nominalDasar" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 font-black text-slate-900 focus:outline-none focus:border-teal-600">
+          </div>
+          <div>
+            <label class="block mb-1">Persentase Potongan (%)</label>
+            <input type="number" min="0" max="100" v-model="simulasi.persenPotongan" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 font-black text-slate-900 focus:outline-none focus:border-teal-600">
+          </div>
+          <div>
+            <label class="block mb-1">Jumlah Santri Penerima Keringanan</label>
+            <input type="number" min="1" v-model="simulasi.jumlahSantri" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 font-black text-slate-900 focus:outline-none focus:border-teal-600">
+          </div>
+
+          <div class="mt-4 p-3 bg-teal-50 rounded-xl border border-teal-300 space-y-1.5 text-teal-950 font-bold">
+            <div class="flex justify-between">
+              <span>Potongan Per Santri:</span>
+              <b class="text-rose-700">- {{ formatRp((simulasi.nominalDasar * simulasi.persenPotongan) / 100) }}</b>
+            </div>
+            <div class="flex justify-between">
+              <span>Biaya IAK Setelah Diskon:</span>
+              <b class="text-emerald-700">{{ formatRp(simulasi.nominalDasar - ((simulasi.nominalDasar * simulasi.persenPotongan) / 100)) }}</b>
+            </div>
+            <div class="flex justify-between pt-1.5 border-t border-teal-200">
+              <span>Total Beban Subsidi Lembaga:</span>
+              <b class="text-rose-800 text-sm">{{ formatRp(((simulasi.nominalDasar * simulasi.persenPotongan) / 100) * simulasi.jumlahSantri) }}</b>
+            </div>
+          </div>
+
+          <div class="pt-3 text-right">
+            <button type="button" @click="showSimulasiModal = false" class="btn-solid-3d px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-black text-xs">
+              Tutup Kalkulator
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL 2: SURAT PANGGILAN RESMI WALI (BISA DIEDIT & DIKIRIM KE WA) ==================== -->
+    <div v-if="showSuratModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 z-50">
+      <div class="card-sharp bg-white rounded-2xl w-full max-w-4xl overflow-hidden border-2 border-indigo-600 flex flex-col max-h-[95vh]">
+        <div class="bg-indigo-900 px-5 py-3 text-white flex justify-between items-center no-print">
+          <h3 class="font-black text-sm flex items-center gap-2">
+            <i class="fa-solid fa-envelope-open-text text-indigo-300"></i> Surat Panggilan Resmi Wali Santri (Edit, Kirim WA & Cetak)
+          </h3>
+          <div class="flex items-center gap-2">
+            <button @click="kirimSuratWa" class="btn-solid-3d px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-black flex items-center gap-1">
+              <i class="fa-brands fa-whatsapp"></i> Kirim ke WA Wali
+            </button>
+            <button @click="eksekusiCetak" class="btn-solid-3d px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-black flex items-center gap-1">
+              <i class="fa-solid fa-print"></i> Cetak Surat
+            </button>
+            <button @click="showSuratModal = false" class="text-indigo-200 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 flex-1 overflow-hidden">
+          <!-- FORM EDIT SURAT (KIRI) -->
+          <div class="p-4 bg-slate-50 border-r border-slate-200 overflow-y-auto no-print space-y-2.5 text-xs font-bold text-slate-800">
+            <h4 class="font-black text-indigo-950 pb-1 border-b border-indigo-200 flex items-center gap-1.5">
+              <i class="fa-solid fa-pen-to-square"></i> Sesuaikan Informasi Surat
+            </h4>
+            
+            <div>
+              <label class="block mb-1">Nomor Surat</label>
+              <input v-model="editSurat.nomor" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 bg-white">
+            </div>
+
+            <div>
+              <label class="block mb-1">Hari & Tanggal Pertemuan</label>
+              <input v-model="editSurat.jadwalHariTanggal" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 bg-white">
+            </div>
+
+            <div>
+              <label class="block mb-1">Waktu / Pukul</label>
+              <input v-model="editSurat.jadwalWaktu" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 bg-white">
+            </div>
+
+            <div>
+              <label class="block mb-1">Tempat Pertemuan</label>
+              <input v-model="editSurat.tempat" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 bg-white">
+            </div>
+
+            <div>
+              <label class="block mb-1">Agenda / Perihal</label>
+              <input v-model="editSurat.agenda" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 bg-white">
+            </div>
+
+            <div>
+              <label class="block mb-1">Catatan Tambahan untuk Wali</label>
+              <textarea v-model="editSurat.catatanTambahan" rows="2" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 bg-white"></textarea>
+            </div>
+            
+            <p class="text-[10px] text-slate-500 font-semibold italic">* Perubahan di samping langsung tercermin pada lembar surat dan teks kirim WhatsApp.</p>
+          </div>
+
+          <!-- PRATINJAU LEMBAR CETAK (KANAN) -->
+          <div class="col-span-2 p-6 overflow-y-auto bg-white surat-print-area text-slate-900 space-y-3.5 text-xs font-serif leading-relaxed">
+            <div class="text-center border-b-2 border-slate-900 pb-3 flex items-center justify-between gap-4">
+              <div class="w-14 h-14 flex-shrink-0 flex items-center justify-center">
+                <img v-if="identitas.logoUrl" :src="identitas.logoUrl" class="max-h-full max-w-full object-contain">
+                <i v-else class="fa-solid fa-school text-3xl text-emerald-900"></i>
+              </div>
+              <div class="flex-1">
+                <h2 class="text-sm font-black uppercase tracking-wider font-sans">{{ identitas.namaMahad }}</h2>
+                <p class="text-[9px] font-sans text-slate-700">{{ identitas.alamat }}</p>
+                <p class="text-[9px] font-sans text-slate-700">Kontak: {{ identitas.kontak }} | Email: {{ identitas.email }}</p>
+              </div>
+              <div class="w-14 h-14 flex-shrink-0"></div>
+            </div>
+
+            <div class="flex justify-between pt-1">
+              <div>
+                <p><b>Nomor</b> : {{ editSurat.nomor }}</p>
+                <p><b>Lampiran</b> : 1 (Satu) Lembar Rincian</p>
+                <p><b>Perihal</b> : <span class="font-bold underline">Undangan Koordinasi Administrasi Santri</span></p>
+              </div>
+              <div class="text-right">
+                <p>Serang, {{ getTanggalHariIni() }}</p>
+              </div>
+            </div>
+
+            <div class="pt-1">
+              <p>Kepada Yth.</p>
+              <p class="font-bold">Bapak / Ibu Wali dari Ananda: {{ activeSantriSurat.nama }}</p>
+              <p>Jenjang: {{ activeSantriSurat.jenjang }} - Kelas {{ activeSantriSurat.kelas }}</p>
+              <p>di Tempat</p>
+            </div>
+
+            <p class="pt-0.5"><b>Assalamu’alaikum Warahmatullahi Wabarakatuh,</b></p>
+            <p>
+              Segala puji bagi Allah Subhanahu wa Ta'ala. Berdasarkan rekapan administrasi IAK (Iuran Administrasi Keuangan / SPP) di {{ identitas.namaMahad }}, kami mengundang Bapak/Ibu Wali Santri untuk hadir dalam agenda musyawarah koordinasi keuangan ananda yang tercatat memiliki sisa tunggakan sebesar <b>{{ formatRp(activeSantriSurat.besarIak * activeSantriSurat.jumlahBulan) }}</b> ({{ activeSantriSurat.jumlahBulan }} Bulan).
+            </p>
+
+            <div class="my-2 p-2.5 bg-slate-50 border border-slate-300 rounded font-sans space-y-1">
+              <p><b>Hari / Tanggal</b> : {{ editSurat.jadwalHariTanggal }}</p>
+              <p><b>Waktu</b> : {{ editSurat.jadwalWaktu }}</p>
+              <p><b>Tempat</b> : {{ editSurat.tempat }}</p>
+              <p><b>Agenda</b> : {{ editSurat.agenda }}</p>
+              <p v-if="editSurat.catatanTambahan"><b>Catatan</b> : {{ editSurat.catatanTambahan }}</p>
+            </div>
+
+            <p>
+              Demikian surat undangan ini kami sampaikan. Atas perhatian, waktu, dan kerja sama Bapak/Ibu demi kelancaran kegiatan belajar ananda, kami haturkan terima kasih.
+            </p>
+            <p><b>Wassalamu’alaikum Warahmatullahi Wabarakatuh.</b></p>
+
+            <div class="pt-4 grid grid-cols-2 text-center font-sans">
+              <div>
+                <p>Mengetahui,<br><b>Kepala Sekolah</b></p>
+                <div class="h-14"></div>
+                <p class="font-bold underline">{{ identitas.namaKepalaSekolah }}</p>
+                <p class="text-[9px]">NIY. {{ identitas.niyKepalaSekolah }}</p>
+              </div>
+              <div>
+                <p>Hormat Kami,<br><b>Bendahara Lembaga</b></p>
+                <div class="h-14 flex items-center justify-center">
+                  <span class="stempel-digital text-[8px] py-0.5 px-2">SEKRETARIAT RESMI</span>
+                </div>
+                <p class="font-bold underline">{{ identitas.namaBendahara }}</p>
+                <p class="text-[9px]">NIY. {{ identitas.niyBendahara }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL 3: SURAT KESEPAKATAN CICILAN / MOU (BISA DIEDIT & DIKIRIM KE WA) ==================== -->
+    <div v-if="showMouModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 z-50">
+      <div class="card-sharp bg-white rounded-2xl w-full max-w-4xl overflow-hidden border-2 border-purple-600 flex flex-col max-h-[95vh]">
+        <div class="bg-purple-900 px-5 py-3 text-white flex justify-between items-center no-print">
+          <h3 class="font-black text-sm flex items-center gap-2">
+            <i class="fa-solid fa-file-contract text-purple-300"></i> Surat Kesepakatan Angsuran / MOU Cicilan (Edit, Kirim WA & Cetak)
+          </h3>
+          <div class="flex items-center gap-2">
+            <button @click="kirimMouWa" class="btn-solid-3d px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-black flex items-center gap-1">
+              <i class="fa-brands fa-whatsapp"></i> Kirim Draf ke WA
+            </button>
+            <button @click="eksekusiCetak" class="btn-solid-3d px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-black flex items-center gap-1">
+              <i class="fa-solid fa-print"></i> Cetak Dokumen MOU
+            </button>
+            <button @click="showMouModal = false" class="text-purple-200 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 flex-1 overflow-hidden">
+          <!-- FORM EDIT MOU (KIRI) -->
+          <div class="p-4 bg-slate-50 border-r border-slate-200 overflow-y-auto no-print space-y-3 text-xs font-bold text-slate-800">
+            <h4 class="font-black text-purple-950 pb-1 border-b border-purple-200 flex items-center gap-1.5">
+              <i class="fa-solid fa-pen-to-square"></i> Atur Jadwal Angsuran
+            </h4>
+            
+            <div class="p-2 bg-purple-100 rounded-lg text-purple-950 font-bold space-y-0.5">
+              <div>Total Tunggakan: <b class="text-rose-700">{{ formatRp(activeSantriMou.besarIak * activeSantriMou.jumlahBulan) }}</b></div>
+              <div>Durasi Nunggak: {{ activeSantriMou.jumlahBulan }} Bulan</div>
+            </div>
+
+            <!-- List Tahap Cicilan -->
+            <div class="space-y-2">
+              <div v-for="(tahap, idx) in activeSantriMou.mouCicilan" :key="idx" class="p-2 bg-white rounded border border-slate-300 space-y-1.5">
+                <div class="flex justify-between items-center">
+                  <span class="text-purple-900 font-black">Tahap {{ tahap.tahap }}</span>
+                  <button v-if="activeSantriMou.mouCicilan.length > 1" @click="hapusBarisTahapMou(idx)" class="text-[10px] text-rose-600 hover:underline">Hapus</button>
+                </div>
+                <div>
+                  <label class="block text-[10px] text-slate-600 mb-0.5">Tanggal Jatuh Tempo</label>
+                  <input type="date" v-model="tahap.tgl" class="w-full border border-slate-300 rounded px-2 py-0.5 text-xs font-mono">
+                </div>
+                <div>
+                  <label class="block text-[10px] text-slate-600 mb-0.5">Nominal Angsuran (Rp)</label>
+                  <input type="number" v-model="tahap.nominal" class="w-full border border-slate-300 rounded px-2 py-0.5 text-xs font-black">
+                </div>
+              </div>
+
+              <button @click="tambahBarisTahapMou" type="button" class="w-full py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-900 rounded font-black text-xs flex items-center justify-center gap-1">
+                <i class="fa-solid fa-plus"></i> Tambah Tahap Angsuran
+              </button>
+            </div>
+            
+            <button @click="simpanPerubahanMou" type="button" class="btn-solid-3d w-full py-2 bg-purple-700 hover:bg-purple-800 text-white rounded font-black text-xs">
+              <i class="fa-solid fa-floppy-disk mr-1"></i> Simpan Draf MOU
+            </button>
+          </div>
+
+          <!-- PRATINJAU LEMBAR CETAK MOU (KANAN) -->
+          <div class="col-span-2 p-6 overflow-y-auto bg-white mou-print-area text-slate-900 space-y-3.5 text-xs font-serif leading-relaxed">
+            <div class="text-center border-b-2 border-slate-900 pb-2">
+              <h2 class="text-sm font-black uppercase tracking-wider font-sans">SURAT PERJANJIAN & KESEPAKATAN BERSAMA (MOU)</h2>
+              <p class="text-xs font-bold uppercase font-sans text-slate-800">PENYELESAIAN TUNGGAKAN IAK / SPP SANTRI</p>
+              <p class="text-[10px] font-sans text-slate-500 font-mono">No: MOU/{{ activeSantriMou.id }}/{{ (new Date()).getFullYear() }}</p>
+            </div>
+
+            <p>Pada hari ini <b>{{ getTanggalHariIni() }}</b>, yang bertanda tangan di bawah ini:</p>
+            
+            <div class="space-y-1 pl-3 border-l-2 border-purple-300 font-sans text-[11px]">
+              <p><b>1. Nama Lembaga</b> : {{ identitas.namaMahad }} (Diwakili Bendahara: {{ identitas.namaBendahara }}) - <i>Pihak Pertama</i></p>
+              <p><b>2. Nama Wali</b> : {{ activeSantriMou.namaWali }} (Wali dari: <b>{{ activeSantriMou.nama }}</b>, Kelas {{ activeSantriMou.kelas }} {{ activeSantriMou.jenjang }}) - <i>Pihak Kedua</i></p>
+            </div>
+
+            <p>
+              Kedua belah pihak bermusyawarah dan sepakat untuk menyelesaikan sisa kewajiban administrasi sebesar <b class="text-rose-700">{{ formatRp(activeSantriMou.besarIak * activeSantriMou.jumlahBulan) }}</b> melalui mekanisme angsuran bertahap sebagai berikut:
+            </p>
+
+            <table class="w-full text-[11px] font-sans border-collapse border border-slate-400">
+              <thead class="bg-slate-100 font-bold uppercase text-[10px]">
+                <tr>
+                  <th class="border border-slate-400 p-1.5 text-center">Tahap</th>
+                  <th class="border border-slate-400 p-1.5">Tanggal Jatuh Tempo</th>
+                  <th class="border border-slate-400 p-1.5 text-right">Nominal Angsuran</th>
+                  <th class="border border-slate-400 p-1.5 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="tahap in activeSantriMou.mouCicilan" :key="tahap.tahap">
+                  <td class="border border-slate-400 p-1.5 text-center font-bold">Tahap {{ tahap.tahap }}</td>
+                  <td class="border border-slate-400 p-1.5 font-mono">{{ tahap.tgl }}</td>
+                  <td class="border border-slate-400 p-1.5 text-right font-black">{{ formatRp(tahap.nominal) }}</td>
+                  <td class="border border-slate-400 p-1.5 text-center font-bold">{{ tahap.status }}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <p class="text-[11px]">
+              Pihak Kedua berkomitmen menyelesaikan pembayaran sesuai tanggal jatuh tempo yang telah disepakati bersama.
+            </p>
+
+            <div class="pt-4 grid grid-cols-2 text-center font-sans">
+              <div>
+                <p>Pihak Pertama,<br><b>Bendahara Ma'had</b></p>
+                <div class="h-16 flex items-center justify-center">
+                  <span class="stempel-digital text-[8px] py-1 px-2.5">DISETUJUI</span>
+                </div>
+                <p class="font-bold underline">{{ identitas.namaBendahara }}</p>
+              </div>
+              <div>
+                <p>Pihak Kedua,<br><b>Wali Santri</b></p>
+                <div class="h-16 flex items-center justify-center">
+                  <span class="border border-dashed border-slate-400 px-2.5 py-1 text-[8px] text-slate-400">Materai Rp 10.000</span>
+                </div>
+                <p class="font-bold underline">{{ activeSantriMou.namaWali }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL 4: HISTORI & LOG INTERAKSI PER SANTRI ==================== -->
+    <div v-if="showLogSantriModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 no-print">
+      <div class="card-sharp bg-white rounded-2xl w-full max-w-lg overflow-hidden border-2 border-amber-600 shadow-2xl flex flex-col max-h-[90vh]">
+        <div class="bg-amber-900 px-5 py-3.5 text-white flex justify-between items-center">
+          <h3 class="font-black text-sm flex items-center gap-2">
+            <i class="fa-solid fa-clock-rotate-left text-amber-300"></i> Histori Log & Interaksi: {{ activeSantriLog.nama }}
+          </h3>
+          <button @click="showLogSantriModal = false" class="text-amber-300 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+
+        <div class="p-5 overflow-y-auto space-y-4 text-xs font-bold flex-1">
+          <!-- Form Tambah Catatan Baru -->
+          <div class="p-3 bg-amber-50 rounded-xl border border-amber-300 space-y-2">
+            <h5 class="text-amber-950 font-black flex items-center gap-1.5"><i class="fa-solid fa-pen-nib"></i> Tambah Catatan Interaksi / Janji Bayar</h5>
+            <div class="space-y-2">
+              <input v-model="formLogBaru.judul" placeholder="Judul interaksi (misal: Telepon Wali, Janji Bayar)" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 font-bold text-slate-900 bg-white">
+              <textarea v-model="formLogBaru.deskripsi" rows="2" placeholder="Detail respon wali atau hasil koordinasi..." class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-900 bg-white"></textarea>
+              <div class="flex justify-end">
+                <button @click="tambahCatatanLogSantri" class="btn-solid-3d px-3 py-1.5 bg-amber-700 hover:bg-amber-800 text-white rounded-lg font-black text-xs">
+                  <i class="fa-solid fa-plus mr-1"></i> Simpan ke Riwayat
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Timeline Riwayat -->
+          <div class="space-y-2">
+            <h5 class="text-slate-800 font-black uppercase text-[11px] tracking-wider">Riwayat Interaksi Tercatat</h5>
+            <div v-if="activeSantriLog.riwayatLog && activeSantriLog.riwayatLog.length > 0" class="space-y-2">
+              <div v-for="(l, idx) in activeSantriLog.riwayatLog" :key="idx" class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
+                <div class="flex justify-between items-center text-[10px]">
+                  <span class="font-black text-amber-900">{{ l.judul }}</span>
+                  <span class="font-mono text-slate-500">{{ l.waktu }}</span>
+                </div>
+                <p class="text-slate-700 font-medium text-xs">{{ l.deskripsi }}</p>
+              </div>
+            </div>
+            <p v-else class="text-slate-400 italic text-center py-4">Belum ada catatan interaksi khusus untuk santri ini.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL 5: CETAK KWITANSI RESMI (A4) & STRUK THERMAL ==================== -->
+    <div v-if="showKwitansiModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div class="card-sharp bg-white rounded-2xl w-full max-w-lg overflow-hidden border-2 border-emerald-600 flex flex-col max-h-[90vh]">
+        <div class="bg-emerald-900 px-5 py-3 text-white flex justify-between items-center no-print">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-receipt text-emerald-300"></i>
+            <h3 class="font-black text-sm">Bukti Pembayaran / Kwitansi</h3>
+          </div>
+          <div class="flex items-center gap-2">
+            <button @click="eksekusiCetak" class="btn-solid-3d px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-black flex items-center gap-1">
+              <i class="fa-solid fa-print"></i> Cetak
+            </button>
+            <button @click="showKwitansiModal = false" class="text-emerald-200 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+          </div>
+        </div>
+
+        <div class="p-6 overflow-y-auto bg-slate-50 flex-1">
+          <!-- FORMAT STRUK THERMAL -->
+          <div v-if="formatKwitansiAktif === 'thermal'" class="thermal-58mm-print bg-white p-4 mx-auto border border-dashed border-slate-400 shadow-sm text-slate-900 font-mono text-[11px] leading-tight">
+            <div class="text-center pb-2 border-b border-dashed border-slate-400">
+              <h4 class="font-black text-xs uppercase">{{ identitas.namaMahad }}</h4>
+              <p class="text-[9px]">{{ identitas.alamat }}</p>
+              <p class="text-[9px]">Telp: {{ identitas.kontak }}</p>
+            </div>
+            
+            <div class="py-2 border-b border-dashed border-slate-400 space-y-1">
+              <div class="flex justify-between"><span>No. Transaksi:</span><span class="font-bold">#{{ kwitansiData.id }}</span></div>
+              <div class="flex justify-between"><span>Tanggal:</span><span>{{ kwitansiData.tanggal }}</span></div>
+              <div class="flex justify-between"><span>Santri:</span><span class="font-bold">{{ kwitansiData.namaSantri }}</span></div>
+              <div class="flex justify-between"><span>Jenjang:</span><span>{{ kwitansiData.jenjang }}</span></div>
+              <div class="flex justify-between"><span>Metode:</span><span>{{ kwitansiData.metode }}</span></div>
+            </div>
+
+            <div class="py-2 border-b border-dashed border-slate-400">
+              <div class="flex justify-between font-black text-xs">
+                <span>TOTAL:</span>
+                <span>{{ formatRp(kwitansiData.nominal) }}</span>
+              </div>
+              <div class="text-[9px] text-slate-600 italic mt-0.5">
+                Terbilang: {{ angkaTerbilang(kwitansiData.nominal) }} Rupiah
+              </div>
+            </div>
+
+            <div class="pt-3 text-center space-y-2">
+              <div id="qrcode-kwitansi-thermal" class="flex justify-center"></div>
+              <p class="text-[9px] text-slate-500">Bukti pembayaran sah administrasi IAK/SPP santri.</p>
+              <p class="text-[9px] font-bold">Bendahara: {{ identitas.namaBendahara }}</p>
+            </div>
+          </div>
+
+          <!-- FORMAT KWITANSI RESMI A4 / SLIP -->
+          <div v-else class="kwitansi-print-area bg-white p-6 border-2 border-slate-800 text-slate-900 space-y-4">
+            <div class="flex items-center justify-between border-b-2 border-slate-800 pb-2">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 flex items-center justify-center">
+                  <img v-if="identitas.logoUrl" :src="identitas.logoUrl" class="max-h-full max-w-full">
+                  <i v-else class="fa-solid fa-school text-3xl text-emerald-800"></i>
+                </div>
+                <div>
+                  <h4 class="font-black text-sm uppercase leading-tight">{{ identitas.namaMahad }}</h4>
+                  <p class="text-[10px] text-slate-600">{{ identitas.alamat }}</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="font-black text-xs uppercase px-2 py-0.5 bg-emerald-100 text-emerald-900 border border-emerald-300 rounded">Kwitansi Sah</span>
+                <p class="text-[10px] font-mono mt-1">No: KW-{{ kwitansiData.id }}</p>
+              </div>
+            </div>
+
+            <div class="space-y-2 text-xs">
+              <div class="grid grid-cols-4">
+                <span class="font-bold text-slate-600">Telah Terima Dari</span>
+                <span class="col-span-3 font-black text-slate-900">: Wali dari {{ kwitansiData.namaSantri }} ({{ kwitansiData.jenjang }})</span>
+              </div>
+              <div class="grid grid-cols-4">
+                <span class="font-bold text-slate-600">Uang Sejumlah</span>
+                <span class="col-span-3 font-bold italic bg-slate-100 p-1.5 rounded border border-slate-200 text-slate-800">: {{ angkaTerbilang(kwitansiData.nominal) }} Rupiah</span>
+              </div>
+              <div class="grid grid-cols-4">
+                <span class="font-bold text-slate-600">Untuk Pembayaran</span>
+                <span class="col-span-3 font-semibold text-slate-900">: IAK / SPP Santri (Metode: {{ kwitansiData.metode }})</span>
+              </div>
+            </div>
+
+            <div class="pt-3 flex items-end justify-between border-t border-slate-300">
+              <div class="bg-emerald-50 border-2 border-emerald-600 px-4 py-2 rounded-lg font-black text-base text-emerald-900">
+                {{ formatRp(kwitansiData.nominal) }}
+              </div>
+
+              <div class="text-center text-xs space-y-8">
+                <p>Serang, {{ kwitansiData.tanggal }}<br><b>Bendahara Penerima</b></p>
+                <p class="font-black underline">{{ identitas.namaBendahara }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL 6: FORM TAMBAH / EDIT SANTRI ==================== -->
+    <div v-if="showModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 no-print">
+      <div class="card-sharp bg-white rounded-2xl w-full max-w-lg overflow-hidden border-2 border-emerald-600">
+        <div class="bg-emerald-900 px-5 py-3.5 text-white flex justify-between items-center">
+          <h3 class="font-black text-sm flex items-center gap-2">
+            <i :class="isEdit ? 'fa-solid fa-user-pen' : 'fa-solid fa-user-plus'"></i>
+            {{ isEdit ? 'Edit Data Santri' : 'Tambah Santri Menunggak' }}
+          </h3>
+          <button @click="showModal = false" class="text-emerald-300 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+
+        <form @submit.prevent="saveDataSantri" class="p-5 space-y-2.5 text-xs font-bold text-slate-800">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block mb-1">NIS Santri</label>
+              <input v-model="formData.nis" required class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-slate-900 focus:outline-none focus:border-emerald-600">
+            </div>
+            <div>
+              <label class="block mb-1">Nama Lengkap Santri</label>
+              <input v-model="formData.nama" required class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-900 focus:outline-none focus:border-emerald-600">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block mb-1">Jenjang</label>
+              <select v-model="formData.jenjang" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-900 focus:outline-none">
+                <option value="MMTQ Putra">MMTQ Putra</option>
+                <option value="MMTQ Putri">MMTQ Putri</option>
+                <option value="MTTQ">MTTQ</option>
+              </select>
+            </div>
+            <div>
+              <label class="block mb-1">Kelas (1-6)</label>
+              <input type="number" v-model="formData.kelas" min="1" max="6" required class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-900 focus:outline-none">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block mb-1">Nama Wali Santri</label>
+              <input v-model="formData.namaWali" required class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-900 focus:outline-none">
+            </div>
+            <div>
+              <label class="block mb-1">No. HP / WhatsApp Utama</label>
+              <input v-model="formData.hpWali" required placeholder="08..." class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-slate-900 focus:outline-none">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block mb-1">Besar IAK Bulanan (Rp)</label>
+              <input type="number" v-model="formData.besarIak" required class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 font-black text-slate-900 focus:outline-none">
+            </div>
+            <div>
+              <label class="block mb-1">Jumlah Bulan Nunggak</label>
+              <input type="number" v-model="formData.jumlahBulan" min="0" required class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 font-black text-slate-900 focus:outline-none">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block mb-1">Bulan Menunggak</label>
+              <input v-model="formData.bulanMenunggak" placeholder="misal: Juli, Agustus" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-900 focus:outline-none">
+            </div>
+            <div>
+              <label class="block mb-1">Status Komunikasi</label>
+              <select v-model="formData.keterangan" class="w-full border-2 border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-900 focus:outline-none">
+                <option value="Belum respon">Belum respon</option>
+                <option value="Akan bayar">Akan bayar</option>
+                <option value="Minta cicilan/MOU">Minta cicilan/MOU</option>
+                <option value="Sudah bayar">Sudah bayar</option>
+                <option value="Nomor tidak aktif">Nomor tidak aktif</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-3 border-t mt-3">
+            <button type="button" @click="showModal = false" class="px-3.5 py-1.5 border border-slate-300 rounded-lg font-bold text-slate-700 hover:bg-slate-100">Batal</button>
+            <button type="submit" class="btn-solid-3d px-4 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-black">Simpan Data</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SCRIPT APLIKASI DENGAN RBAC, MULTI-TENANCY & SINKRONISASI -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBIXrQZ2bsG9nFUUwG9t8zOODusjygJr-s",
+      authDomain: "si-intan-dd3b3.firebaseapp.com",
+      projectId: "si-intan-dd3b3",
+      storageBucket: "si-intan-dd3b3.firebasestorage.app",
+      messagingSenderId: "301518285867",
+      appId: "1:301518285867:web:dc8ed2d0ad184d79b14e6e"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    db.enablePersistence().catch(() => {});
+
+    const { createApp } = Vue;
+
+    createApp({
+      data() {
+        return {
+          isLoggedIn: false,
+          showPass: false,
+          loginError: '',
+          loginForm: { tenantId: 'pusat', username: 'bendahara', password: '' },
+          currentTenantId: 'pusat',
+          
+          currentUser: { username: '', role: 'bendahara', nama: 'Bendahara Keuangan' },
+
+          userDirectory: [
+            { username: 'admin', role: 'admin', pass: 'admin123', nama: 'Super Administrator' },
+            { username: 'bendahara', role: 'bendahara', pass: 'admin123', nama: 'Dadi Slamet Riyadi' },
+            { username: 'kepsek', role: 'kepsek', pass: 'admin123', nama: 'Ustadz H. Ahmad Ridwan, Lc., M.Ag.' }
+          ],
+
+          isRefreshing: false,
+          toast: { show: false, title: '', message: '' },
+
+          isSidebarOpen: true,
+          isPresentationMode: false,
+          activeMenu: 'dashboard',
+          
+          menuList: [
+            { id: 'dashboard', label: 'Dashboard 3D', icon: 'fa-solid fa-chart-pie' },
+            { id: 'peringatan', label: 'Peringatan & Jatuh Tempo', icon: 'fa-solid fa-triangle-exclamation' },
+            { id: 'datamaster', label: 'Data Master Tunggakan', icon: 'fa-solid fa-users-viewfinder' },
+            { id: 'transaksi', label: 'Transaksi & Kwitansi', icon: 'fa-solid fa-receipt' },
+            { id: 'activitylog', label: 'Activity Log (Audit)', icon: 'fa-solid fa-clock-rotate-left' },
+            { id: 'templatewa', label: 'Template WhatsApp', icon: 'fa-brands fa-whatsapp' },
+            { id: 'laporan', label: 'Laporan & Presentasi', icon: 'fa-solid fa-file-powerpoint' },
+            { id: 'backup', label: 'Backup Database (JSON)', icon: 'fa-solid fa-database' },
+            { id: 'identitas', label: 'Identitas & Profil', icon: 'fa-solid fa-school' },
+            { id: 'password', label: 'Ganti Password', icon: 'fa-solid fa-key' }
+          ],
+
+          selectedPeriode: '2026-08',
+          search: '',
+          filterJenjang: '',
+          filterStatus: '',
+
+          ocrLoading: false,
+          ocrProgress: 0,
+
+          showModal: false,
+          isEdit: false,
+          formData: { id: null, nis: '', nama: '', jenjang: 'MMTQ Putra', kelas: 1, namaWali: '', hpWali: '', besarIak: 500000, jumlahBulan: 0, bulanMenunggak: '', fuWa: 'Belum Dikirim', keterangan: 'Belum respon', tglJanjiBayar: '', mouCicilan: [] },
+
+          showKwitansiModal: false,
+          formatKwitansiAktif: 'resmi',
+          kwitansiData: {},
+
+          // MODAL SIMULASI
+          showSimulasiModal: false,
+          simulasi: { jenjang: 'MMTQ Putra', persenPotongan: 50, nominalDasar: 500000, jumlahSantri: 5 },
+
+          // MODAL SURAT PANGGILAN (BISA DIEDIT)
+          showSuratModal: false,
+          activeSantriSurat: {},
+          editSurat: {
+            nomor: '',
+            jadwalHariTanggal: 'Sabtu, 22 Agustus 2026',
+            jadwalWaktu: '09.00 - 11.30 WIB',
+            tempat: 'Kantor Administrasi & Keuangan Ma\'had Imam Syafi\'i Serang',
+            agenda: 'Koordinasi & Penyusunan Skema Penyelesaian Administrasi Santri',
+            catatanTambahan: 'Membawa buku catatan atau bukti transaksi sebelumnya jika ada.'
+          },
+
+          // MODAL MOU (BISA DIEDIT)
+          showMouModal: false,
+          activeSantriMou: {},
+
+          // MODAL LOG SANTRI
+          showLogSantriModal: false,
+          activeSantriLog: {},
+          formLogBaru: { judul: '', deskripsi: '' },
+
+          templateWa: {
+            ramah: "*Assalamu’alaikum Warahmatullahi Wabarakatuh*\n\nYth. Bapak/Ibu Wali dari Ananda *{nama}* ({jenjang} - Kelas {kelas}),\n\nKami dari Bagian Keuangan *{mahad}* menginformasikan administrasi IAK/SPP ananda per bulan {bulan} sebesar *{nominal}*.\n\nPembayaran dapat ditransfer melalui rekening Ma'had: {rekening}. Mohon konfirmasi jika sudah tertunaikan. Jazaakumullahu Khairan.\n\n*Bendahara Keuangan ({admin})*",
+            intensif: "*Assalamu’alaikum Warahmatullahi Wabarakatuh*\n\nYth. Bapak/Ibu Wali dari Ananda *{nama}* ({jenjang} - Kelas {kelas}),\n\nMenindaklanjuti rekapan administrasi IAK/SPP ananda di *{mahad}* dengan tunggakan sebesar *{nominal}* ({durasi} Bulan).\n\nDemi kelancaran operasional santri, kami mengundang Bapak/Ibu untuk berkoordinasi mengenai rencana penyelesaian. Jazaakumullahu Khairan.\n\n*Bendahara Keuangan ({admin})*",
+            lunas: "*Assalamu’alaikum Warahmatullahi Wabarakatuh*\n\nAlhamdulillah pembayaran IAK/SPP ananda *{nama}* sebesar *{nominal}* telah lunas. Terima kasih atas kerja samanya.\n\n*Bendahara Keuangan ({admin})*"
+          },
+
+          formTransaksi: { santriId: '', nominal: null, kurangBulan: 1, metode: 'Transfer Smart Billing', catatan: '' },
+          
+          // KONDISI DATA BERSIH READY UNTUK DIISI PERTAMA KALI
+          santriList: [],
+          riwayatTransaksi: [],
+
+          identitas: {
+            namaMahad: "MA'HAD IMAM SYAFI'I SERANG",
+            alamat: "Jl. Raya Cilegon Km. 08, Drangong, Taktakan, Kota Serang, Banten",
+            kontak: "(0254) 848-1234 / 0812-3456-7890",
+            email: "keuangan@mahadsyafii.sch.id",
+            namaKepalaSekolah: "Ustadz H. Ahmad Ridwan, Lc., M.Ag.",
+            niyKepalaSekolah: "19800412 201001 1 001",
+            namaBendahara: "Dadi Slamet Riyadi",
+            niyBendahara: "19910815 201602 1 004",
+            logoUrl: "",
+            fotoBendaharaUrl: "",
+            qrisPayload: "00020101021126580014ID.LINKAJA.WWW0118936009110000000000021008123456785204541153033605802ID5919MAHAD IMAM SYAFII6006SERANG6304ABCD",
+            rekeningYayasan: "BSI: 712-3456-789 an. Yayasan Imam Syafii Serang"
+          },
+
+          passForm: { oldPass: '', newPass: '', confirmPass: '' },
+          passMsg: { text: '', success: false },
+
+          charts: { trend: null, nominalKelas: null, statusProporsi: null, fuWaProgress: null }
+        };
+      },
+
+      computed: {
+        currentMenuTitle() {
+          const m = this.menuList.find(x => x.id === this.activeMenu);
+          return m ? m.label : 'Monitoring Keuangan';
+        },
+        santriTerpilihTransaksi() {
+          return this.santriList.find(s => s.id === this.formTransaksi.santriId);
+        },
+        totalNominalTransaksi() {
+          return this.riwayatTransaksi.reduce((a, b) => a + Number(b.nominal), 0);
+        },
+        daftarSemuaLogAktivitas() {
+          const res = [];
+          this.santriList.forEach(s => {
+            (s.riwayatLog || []).forEach(l => {
+              res.push({
+                nis: s.nis,
+                namaSantri: s.nama,
+                jenjang: s.jenjang,
+                waktu: l.waktu,
+                judul: l.judul,
+                deskripsi: l.deskripsi
+              });
+            });
+          });
+          return res.sort((a, b) => new Date(b.waktu) - new Date(a.waktu));
+        },
+        santriJatuhTempoPekanIni() {
+          return this.santriList.filter(s => {
+            if (!s.tglJanjiBayar || s.jumlahBulan === 0) return false;
+            const target = new Date(s.tglJanjiBayar);
+            const now = new Date();
+            const diffDays = Math.ceil((target - now) / (1000 * 60 * 60 * 24));
+            return diffDays >= -3 && diffDays <= 7;
+          });
+        },
+        santriKritisList() {
+          return this.santriList.filter(s => {
+            const nominal = s.besarIak * s.jumlahBulan;
+            return s.jumlahBulan >= 4 || nominal >= 2000000;
+          });
+        },
+        daftarJadwalMou() {
+          const res = [];
+          this.santriList.forEach(s => {
+            if (s.mouCicilan && Array.isArray(s.mouCicilan)) {
+              s.mouCicilan.forEach((c, idx) => {
+                res.push({
+                  key: `${s.id}-${idx}`,
+                  santriId: s.id,
+                  nama: s.nama,
+                  jenjang: s.jenjang,
+                  namaWali: s.namaWali,
+                  hpWali: s.hpWali,
+                  tahap: c.tahap,
+                  nominal: c.nominal,
+                  tgl: c.tgl,
+                  status: c.status
+                });
+              });
+            }
+          });
+          return res.sort((a, b) => new Date(a.tgl) - new Date(b.tgl));
+        },
+        filteredSantri() {
+          return this.santriList.filter(s => {
+            const q = this.search.toLowerCase();
+            const matchSearch = s.nama.toLowerCase().includes(q) || s.nis.includes(q) || s.namaWali.toLowerCase().includes(q);
+            const matchJenjang = this.filterJenjang ? s.jenjang === this.filterJenjang : true;
+            let matchStatus = true;
+            if (this.filterStatus) {
+              matchStatus = this.getStatusText(s.jumlahBulan) === this.filterStatus;
+            }
+            return matchSearch && matchJenjang && matchStatus;
+          });
+        },
+        statUmum() {
+          const totalSantri = this.santriList.length;
+          const santriLunas = this.santriList.filter(s => s.jumlahBulan === 0).length;
+          const santriMenunggak = totalSantri - santriLunas;
+          const totalTunggakan = this.santriList.reduce((acc, curr) => acc + (curr.besarIak * curr.jumlahBulan), 0);
+          return {
+            totalSantri,
+            santriLunas,
+            santriMenunggak,
+            persenLunas: totalSantri ? ((santriLunas / totalSantri) * 100).toFixed(1) : 0,
+            totalTunggakan
+          };
+        },
+        statNominal() {
+          let targetAwal = this.santriList.reduce((acc, curr) => acc + curr.besarIak, 0);
+          const sisaTunggakan = this.statUmum.totalTunggakan;
+          const pembayaranMasuk = this.totalNominalTransaksi;
+          const persenBerhasil = targetAwal ? ((pembayaranMasuk / targetAwal) * 100).toFixed(1) : 0;
+          return { targetAwal, sisaTunggakan, pembayaranMasuk, persenBerhasil };
+        },
+        rekapJenjang() {
+          const list = ['MMTQ Putra', 'MMTQ Putri', 'MTTQ'];
+          return list.map(j => {
+            const santriInJenjang = this.santriList.filter(s => s.jenjang === j && s.jumlahBulan > 0);
+            const nominal = santriInJenjang.reduce((acc, curr) => acc + (curr.besarIak * curr.jumlahBulan), 0);
+            const totalBulan = santriInJenjang.reduce((acc, curr) => acc + curr.jumlahBulan, 0);
+            return { nama: j, jumlah: santriInJenjang.length, nominal, totalBulan };
+          });
+        }
+      },
+
+      mounted() {
+        this.cekSesiPengguna();
+      },
+
+      methods: {
+        tampilkanNotifikasi(title, message) {
+          this.toast = { show: true, title, message };
+          setTimeout(() => { this.toast.show = false; }, 4000);
+        },
+
+        handleLogin() {
+          const user = this.userDirectory.find(u => u.username === this.loginForm.username && u.pass === this.loginForm.password);
+          if (user) {
+            this.currentUser = { username: user.username, role: user.role, nama: user.nama };
+            this.currentTenantId = this.loginForm.tenantId.trim().toLowerCase() || 'pusat';
+            this.isLoggedIn = true;
+            this.loginError = '';
+
+            sessionStorage.setItem('si_intan_auth', JSON.stringify({
+              user: this.currentUser,
+              tenantId: this.currentTenantId
+            }));
+
+            this.ambilDataDariFirebase();
+            this.$nextTick(() => { this.initCharts(); });
+          } else {
+            this.loginError = 'Username atau kata sandi tidak cocok.';
+          }
+        },
+
+        cekSesiPengguna() {
+          const raw = sessionStorage.getItem('si_intan_auth');
+          if (raw) {
+            try {
+              const parsed = JSON.parse(raw);
+              this.currentUser = parsed.user;
+              this.currentTenantId = parsed.tenantId;
+              this.isLoggedIn = true;
+              this.ambilDataDariFirebase();
+              this.$nextTick(() => { this.initCharts(); });
+            } catch(e) {}
+          }
+        },
+
+        logout() {
+          this.isLoggedIn = false;
+          sessionStorage.removeItem('si_intan_auth');
+        },
+
+        saveAllToStorage() {
+          const tenantKey = `tenant_${this.currentTenantId}`;
+          localStorage.setItem(`${tenantKey}_santri`, JSON.stringify(this.santriList));
+          localStorage.setItem(`${tenantKey}_tx`, JSON.stringify(this.riwayatTransaksi));
+          localStorage.setItem(`${tenantKey}_identitas`, JSON.stringify(this.identitas));
+          localStorage.setItem(`${tenantKey}_template_wa`, JSON.stringify(this.templateWa));
+
+          db.collection("tenants").doc(this.currentTenantId).set({
+            santriList: this.santriList,
+            riwayatTransaksi: this.riwayatTransaksi,
+            identitas: this.identitas,
+            templateWa: this.templateWa,
+            lastUpdated: new Date().toISOString()
+          }, { merge: true }).catch(() => {});
+        },
+
+        ambilDataDariFirebase() {
+          this.isRefreshing = true;
+          const tenantKey = `tenant_${this.currentTenantId}`;
+
+          db.collection("tenants").doc(this.currentTenantId).get().then(doc => {
+            if (doc.exists) {
+              const d = doc.data();
+              this.santriList = d.santriList || [];
+              this.riwayatTransaksi = d.riwayatTransaksi || [];
+              if (d.identitas) this.identitas = { ...this.identitas, ...d.identitas };
+              if (d.templateWa) this.templateWa = { ...this.templateWa, ...d.templateWa };
+            } else {
+              const localSantri = localStorage.getItem(`${tenantKey}_santri`);
+              if (localSantri) this.santriList = JSON.parse(localSantri);
+              const localTx = localStorage.getItem(`${tenantKey}_tx`);
+              if (localTx) this.riwayatTransaksi = JSON.parse(localTx);
+            }
+            this.$nextTick(() => this.updateCharts());
+          }).finally(() => {
+            this.isRefreshing = false;
+          });
+        },
+
+        segarkanDataCloud() {
+          this.ambilDataDariFirebase();
+          this.tampilkanNotifikasi('Sinkronisasi Sukses', 'Data mutakhir berhasil diselaraskan dari Cloud Firestore.');
+        },
+
+        onLogoUpload(e) {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            this.identitas.logoUrl = event.target.result;
+            this.saveAllToStorage();
+            this.tampilkanNotifikasi('Logo Diperbarui', 'Logo lembaga berhasil diunggah.');
+          };
+          reader.readAsDataURL(file);
+        },
+
+        hapusLogo() {
+          this.identitas.logoUrl = '';
+          this.saveAllToStorage();
+          this.tampilkanNotifikasi('Logo Dihapus', 'Logo lembaga telah dikosongkan.');
+        },
+
+        onFotoBendaharaUpload(e) {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            this.identitas.fotoBendaharaUrl = event.target.result;
+            this.saveAllToStorage();
+            this.tampilkanNotifikasi('Foto Diperbarui', 'Foto profil bendahara berhasil disimpan.');
+          };
+          reader.readAsDataURL(file);
+        },
+
+        hapusFotoBendahara() {
+          this.identitas.fotoBendaharaUrl = '';
+          this.saveAllToStorage();
+          this.tampilkanNotifikasi('Foto Dihapus', 'Foto profil bendahara telah dikosongkan.');
+        },
+
+        // TINDAKAN: BUKA MODAL SURAT PANGGILAN
+        bukaModalSuratPanggilan(santri) {
+          this.activeSantriSurat = santri;
+          this.editSurat.nomor = `SP.${santri.id || Date.now().toString().slice(-4)}/KEU-MIAS/${new Date().getFullYear()}`;
+          this.showSuratModal = true;
+        },
+
+        kirimSuratWa() {
+          const s = this.activeSantriSurat;
+          let cleanPhone = String(s.hpWali || '').replace(/[^0-9]/g, '');
+          if (cleanPhone.startsWith('0')) cleanPhone = '62' + cleanPhone.substring(1);
+          const totalNominal = this.formatRp(s.besarIak * s.jumlahBulan);
+
+          const pesan = `*SURAT UNDANGAN KOORDINASI ADMINISTRASI SANTRI*\n` +
+            `*${this.identitas.namaMahad}*\n` +
+            `No: ${this.editSurat.nomor}\n\n` +
+            `Assalamu’alaikum Warahmatullahi Wabarakatuh,\n` +
+            `Yth. Wali dari Ananda *${s.nama}* (${s.jenjang} - Kelas ${s.kelas}),\n\n` +
+            `Sehubungan dengan administrasi IAK ananda yang tercatat sebesar *${totalNominal}* (${s.jumlahBulan} Bulan), kami mengundang Bapak/Ibu untuk hadir pada:\n` +
+            `• *Hari/Tgl*: ${this.editSurat.jadwalHariTanggal}\n` +
+            `• *Waktu*: ${this.editSurat.jadwalWaktu}\n` +
+            `• *Tempat*: ${this.editSurat.tempat}\n` +
+            `• *Agenda*: ${this.editSurat.agenda}\n` +
+            (this.editSurat.catatanTambahan ? `• *Catatan*: ${this.editSurat.catatanTambahan}\n\n` : `\n`) +
+            `Jazaakumullahu Khairan atas kerja sama Bapak/Ibu.\n\n` +
+            `*${this.identitas.namaBendahara}* (Bendahara Ma'had)`;
+
+          window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(pesan)}`, '_blank');
+        },
+
+        // TINDAKAN: BUKA MODAL MOU
+        bukaModalMou(santri) {
+          this.activeSantriMou = santri;
+          if (!santri.mouCicilan || santri.mouCicilan.length === 0) {
+            const total = santri.besarIak * santri.jumlahBulan;
+            const paruh = Math.floor(total / 2);
+            santri.mouCicilan = [
+              { tahap: 1, nominal: paruh, tgl: '2026-08-25', status: 'Belum Lunas' },
+              { tahap: 2, nominal: total - paruh, tgl: '2026-09-10', status: 'Belum Lunas' }
+            ];
+          }
+          this.showMouModal = true;
+        },
+
+        tambahBarisTahapMou() {
+          const nextTahap = this.activeSantriMou.mouCicilan.length + 1;
+          this.activeSantriMou.mouCicilan.push({
+            tahap: nextTahap,
+            nominal: 500000,
+            tgl: new Date().toISOString().slice(0, 10),
+            status: 'Belum Lunas'
+          });
+        },
+
+        hapusBarisTahapMou(index) {
+          this.activeSantriMou.mouCicilan.splice(index, 1);
+          this.activeSantriMou.mouCicilan.forEach((item, idx) => {
+            item.tahap = idx + 1;
+          });
+        },
+
+        simpanPerubahanMou() {
+          this.saveAllToStorage();
+          this.tampilkanNotifikasi('MOU Disimpan', 'Rincian jadwal cicilan berhasil diperbarui.');
+        },
+
+        kirimMouWa() {
+          const s = this.activeSantriMou;
+          let cleanPhone = String(s.hpWali || '').replace(/[^0-9]/g, '');
+          if (cleanPhone.startsWith('0')) cleanPhone = '62' + cleanPhone.substring(1);
+          
+          let listTahap = '';
+          (s.mouCicilan || []).forEach(t => {
+            listTahap += `• Tahap ${t.tahap}: *${this.formatRp(t.nominal)}* (Jatuh tempo: ${t.tgl})\n`;
+          });
+
+          const pesan = `*KESEPAKATAN BERSAMA (MOU) ANGSURAN IAK*\n` +
+            `*${this.identitas.namaMahad}*\n\n` +
+            `Assalamu’alaikum Warahmatullahi Wabarakatuh,\n` +
+            `Yth. Bapak/Ibu Wali dari Ananda *${s.nama}* (${s.jenjang} - Kelas ${s.kelas}),\n\n` +
+            `Berikut draf komitmen angsuran penyelesaian IAK total *${this.formatRp(s.besarIak * s.jumlahBulan)}*:\n\n` +
+            `${listTahap}\n` +
+            `Pembayaran dapat disalurkan melalui rekening: ${this.identitas.rekeningYayasan}.\n\n` +
+            `Jazaakumullahu Khairan atas komitmen Bapak/Ibu.\n\n` +
+            `*${this.identitas.namaBendahara}* (Bendahara Ma'had)`;
+
+          window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(pesan)}`, '_blank');
+        },
+
+        // TINDAKAN: BUKA MODAL LOG SANTRI
+        bukaModalLogSantri(santri) {
+          this.activeSantriLog = santri;
+          if (!santri.riwayatLog) santri.riwayatLog = [];
+          this.formLogBaru = { judul: '', deskripsi: '' };
+          this.showLogSantriModal = true;
+        },
+
+        tambahCatatanLogSantri() {
+          if (!this.formLogBaru.judul) return;
+          const logItem = {
+            waktu: new Date().toLocaleDateString('id-ID') + ' ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+            judul: this.formLogBaru.judul,
+            deskripsi: this.formLogBaru.deskripsi || '-'
+          };
+          this.activeSantriLog.riwayatLog.unshift(logItem);
+          this.saveAllToStorage();
+          this.tampilkanNotifikasi('Catatan Disimpan', 'Log interaksi santri berhasil diperbarui.');
+          this.formLogBaru = { judul: '', deskripsi: '' };
+        },
+
+        eksekusiCetak() {
+          window.print();
+        },
+
+        simpanTransaksi() {
+          const s = this.santriTerpilihTransaksi;
+          if (!s) return;
+
+          const txBaru = {
+            id: Date.now().toString().slice(-6),
+            tanggal: new Date().toLocaleDateString('id-ID'),
+            santriId: s.id,
+            namaSantri: s.nama,
+            jenjang: s.jenjang,
+            nominal: Number(this.formTransaksi.nominal),
+            metode: this.formTransaksi.metode,
+            catatan: this.formTransaksi.catatan
+          };
+
+          this.riwayatTransaksi.unshift(txBaru);
+
+          const sIndex = this.santriList.findIndex(x => x.id === s.id);
+          if (sIndex !== -1) {
+            this.santriList[sIndex].jumlahBulan = Math.max(0, this.santriList[sIndex].jumlahBulan - Number(this.formTransaksi.kurangBulan));
+            if (this.santriList[sIndex].jumlahBulan === 0) {
+              this.santriList[sIndex].keterangan = 'Sudah bayar';
+            }
+            if (!this.santriList[sIndex].riwayatLog) this.santriList[sIndex].riwayatLog = [];
+            this.santriList[sIndex].riwayatLog.unshift({
+              waktu: txBaru.tanggal,
+              judul: 'Pembayaran Diterima',
+              deskripsi: `Pembayaran masuk sebesar ${this.formatRp(txBaru.nominal)} via ${txBaru.metode}.`
+            });
+          }
+
+          this.saveAllToStorage();
+          this.updateCharts();
+
+          this.tampilkanNotifikasi('Transaksi Berhasil', `Pembayaran ${this.formatRp(txBaru.nominal)} an. ${txBaru.namaSantri} sukses dibukukan.`);
+          this.bukaModalKwitansi(txBaru, 'resmi');
+          this.formTransaksi = { santriId: '', nominal: null, kurangBulan: 1, metode: 'Transfer Smart Billing', catatan: '' };
+        },
+
+        bukaModalKwitansi(transaksi, format) {
+          this.kwitansiData = transaksi;
+          this.formatKwitansiAktif = format;
+          this.showKwitansiModal = true;
+
+          this.$nextTick(() => {
+            const qrBox = document.getElementById('qrcode-kwitansi-thermal');
+            if (qrBox && this.identitas.qrisPayload) {
+              qrBox.innerHTML = '';
+              new QRCode(qrBox, {
+                text: this.identitas.qrisPayload,
+                width: 60,
+                height: 60
+              });
+            }
+          });
+        },
+
+        saveDataSantri() {
+          if (this.isEdit) {
+            const idx = this.santriList.findIndex(s => s.id === this.formData.id);
+            if (idx !== -1) this.santriList[idx] = { ...this.formData };
+          } else {
+            this.santriList.push({ ...this.formData });
+          }
+          this.showModal = false;
+          this.saveAllToStorage();
+          this.updateCharts();
+          this.tampilkanNotifikasi('Data Disimpan', `Data santri ${this.formData.nama} berhasil dicatat.`);
+        },
+
+        openModal(santri = null) {
+          if (santri) {
+            this.isEdit = true;
+            this.formData = { ...santri };
+          } else {
+            this.isEdit = false;
+            this.formData = { id: Date.now(), nis: '', nama: '', jenjang: 'MMTQ Putra', kelas: 1, namaWali: '', hpWali: '', besarIak: 500000, jumlahBulan: 0, bulanMenunggak: '', fuWa: 'Belum Dikirim', keterangan: 'Belum respon', tglJanjiBayar: '', mouCicilan: [], riwayatLog: [] };
+          }
+          this.showModal = true;
+        },
+
+        hapusData(id) {
+          if (confirm('Yakin ingin menghapus santri ini dari daftar monitoring?')) {
+            this.santriList = this.santriList.filter(s => s.id !== id);
+            this.saveAllToStorage();
+            this.updateCharts();
+            this.tampilkanNotifikasi('Data Dihapus', 'Data santri telah berhasil dihapus dari sistem.');
+          }
+        },
+
+        simpanIdentitas() {
+          this.saveAllToStorage();
+          this.tampilkanNotifikasi('Pengaturan Disimpan', 'Identitas lembaga dan pejabat berhasil diperbarui.');
+        },
+
+        simpanTemplateWa() {
+          this.saveAllToStorage();
+          this.tampilkanNotifikasi('Template Disimpan', 'Template pesan WhatsApp berhasil diperbarui.');
+        },
+
+        resetTemplateWaDefault() {
+          if (confirm('Kembalikan template pesan ke default?')) {
+            this.templateWa = {
+              ramah: "*Assalamu’alaikum Warahmatullahi Wabarakatuh*\n\nYth. Wali Ananda *{nama}* ({jenjang} - Kelas {kelas}),\n\nAdministrasi IAK/SPP ananda bulan {bulan} sebesar *{nominal}*.\n\nPembayaran dapat disalurkan melalui rekening {rekening}. Jazaakumullahu Khairan.\n\n*Bendahara Keuangan ({admin})*",
+              intensif: "*Assalamu’alaikum Warahmatullahi Wabarakatuh*\n\nMenindaklanjuti tunggakan IAK ananda *{nama}* sebesar *{nominal}*. Mohon konfirmasi jadwal penyelesaian. Jazaakumullahu Khairan.\n\n*Bendahara Keuangan ({admin})*",
+              lunas: "*Assalamu’alaikum Warahmatullahi Wabarakatuh*\n\nAlhamdulillah pembayaran IAK ananda *{nama}* sebesar *{nominal}* telah lunas. Terima kasih.\n\n*Bendahara Keuangan ({admin})*"
+            };
+            this.saveAllToStorage();
+          }
+        },
+
+        simpanPasswordBaru() {
+          if (this.passForm.newPass !== this.passForm.confirmPass) {
+            this.passMsg = { text: 'Konfirmasi sandi baru tidak cocok.', success: false };
+            return;
+          }
+          this.passMsg = { text: 'Kata sandi berhasil diperbarui!', success: true };
+          this.passForm = { oldPass: '', newPass: '', confirmPass: '' };
+        },
+
+        formatRp(val) {
+          return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0);
+        },
+
+        getStatusBadgeClass(bln) {
+          if (bln === 0) return 'bg-emerald-100 text-emerald-900 border-emerald-400';
+          if (bln === 1) return 'bg-amber-100 text-amber-900 border-amber-400';
+          if (bln <= 3) return 'bg-orange-100 text-orange-900 border-orange-400';
+          return 'bg-rose-100 text-rose-900 border-rose-400';
+        },
+
+        getStatusText(bln) {
+          if (bln === 0) return 'Lunas';
+          if (bln === 1) return 'Menunggak 1 Bulan';
+          if (bln <= 3) return 'Menunggak 2-3 Bulan';
+          return 'Menunggak >4 Bulan';
+        },
+
+        angkaTerbilang(angka) {
+          angka = Math.floor(Math.abs(Number(angka) || 0));
+          const bilangan = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas'];
+          let hasil = '';
+          if (angka < 12) hasil = ' ' + bilangan[angka];
+          else if (angka < 20) hasil = this.angkaTerbilang(angka - 10) + ' Belas';
+          else if (angka < 100) hasil = this.angkaTerbilang(Math.floor(angka / 10)) + ' Puluh' + this.angkaTerbilang(angka % 10);
+          else if (angka < 200) hasil = ' Seratus' + this.angkaTerbilang(angka - 100);
+          else if (angka < 1000) hasil = this.angkaTerbilang(Math.floor(angka / 100)) + ' Ratus' + this.angkaTerbilang(angka % 100);
+          else if (angka < 2000) hasil = ' Seribu' + this.angkaTerbilang(angka - 1000);
+          else if (angka < 1000000) hasil = this.angkaTerbilang(Math.floor(angka / 1000)) + ' Ribu' + this.angkaTerbilang(angka % 1000);
+          else if (angka < 1000000000) hasil = this.angkaTerbilang(Math.floor(angka / 1000000)) + ' Juta' + this.angkaTerbilang(angka % 1000000);
+          return hasil.trim();
+        },
+
+        kirimPesanWa(santri) {
+          let cleanPhone = String(santri.hpWali || '').replace(/[^0-9]/g, '');
+          if (cleanPhone.startsWith('0')) cleanPhone = '62' + cleanPhone.substring(1);
+          const totalNominal = this.formatRp(santri.besarIak * santri.jumlahBulan);
+          
+          let tpl = santri.jumlahBulan > 3 ? this.templateWa.intensif : this.templateWa.ramah;
+          let pesan = tpl
+            .replace(/{nama}/g, santri.nama)
+            .replace(/{jenjang}/g, santri.jenjang)
+            .replace(/{kelas}/g, santri.kelas)
+            .replace(/{mahad}/g, this.identitas.namaMahad)
+            .replace(/{bulan}/g, santri.bulanMenunggak || 'Agustus')
+            .replace(/{nominal}/g, totalNominal)
+            .replace(/{durasi}/g, santri.jumlahBulan)
+            .replace(/{rekening}/g, this.identitas.rekeningYayasan)
+            .replace(/{admin}/g, this.identitas.namaBendahara);
+
+          santri.fuWa = 'Dikirim';
+          this.saveAllToStorage();
+          window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(pesan)}`, '_blank');
+        },
+
+        salinTeksPesanWa(santri) {
+          const totalNominal = this.formatRp(santri.besarIak * santri.jumlahBulan);
+          let tpl = santri.jumlahBulan > 3 ? this.templateWa.intensif : this.templateWa.ramah;
+          let pesan = tpl
+            .replace(/{nama}/g, santri.nama)
+            .replace(/{jenjang}/g, santri.jenjang)
+            .replace(/{kelas}/g, santri.kelas)
+            .replace(/{mahad}/g, this.identitas.namaMahad)
+            .replace(/{bulan}/g, santri.bulanMenunggak || 'Agustus')
+            .replace(/{nominal}/g, totalNominal)
+            .replace(/{durasi}/g, santri.jumlahBulan)
+            .replace(/{rekening}/g, this.identitas.rekeningYayasan)
+            .replace(/{admin}/g, this.identitas.namaBendahara);
+
+          navigator.clipboard.writeText(pesan).then(() => {
+            this.tampilkanNotifikasi('Teks Disalin', `Draf pesan tagihan ${santri.nama} berhasil disalin ke clipboard.`);
+          });
+        },
+
+        getJatuhTempoBadge(tglStr) {
+          const target = new Date(tglStr);
+          const now = new Date();
+          const diffDays = Math.ceil((target - now) / (1000 * 60 * 60 * 24));
+          if (diffDays < 0) return { label: 'Terlambat ' + Math.abs(diffDays) + ' hari', color: 'text-rose-700' };
+          if (diffDays === 0) return { label: 'Jatuh Tempo Hari Ini', color: 'text-amber-700' };
+          return { label: diffDays + ' hari lagi', color: 'text-blue-700' };
+        },
+
+        isLewatJatuhTempo(tglStr) {
+          if (!tglStr) return false;
+          const target = new Date(tglStr);
+          const now = new Date();
+          now.setHours(0,0,0,0);
+          return target < now;
+        },
+
+        tandaiMouLunas(item) {
+          const s = this.santriList.find(x => x.id === item.santriId);
+          if (s && s.mouCicilan) {
+            const c = s.mouCicilan.find(x => x.tahap === item.tahap);
+            if (c) {
+              c.status = 'Lunas';
+              this.saveAllToStorage();
+              this.tampilkanNotifikasi('Angsuran Lunas', `Cicilan Tahap ${item.tahap} an. ${item.nama} telah ditandai lunas.`);
+            }
+          }
+        },
+
+        kirimWaMou(item) {
+          let cleanPhone = String(item.hpWali || '').replace(/[^0-9]/g, '');
+          if (cleanPhone.startsWith('0')) cleanPhone = '62' + cleanPhone.substring(1);
+          const pesan = `*Assalamu'alaikum Warahmatullahi Wabarakatuh*\n\nYth. Wali dari ${item.nama},\n\nMengingatkan kembali jadwal angsuran MOU Tahap ${item.tahap} sebesar *${this.formatRp(item.nominal)}* dengan jatuh tempo tanggal ${item.tgl}.\n\nPembayaran dapat disalurkan melalui ${this.identitas.rekeningYayasan}. Jazaakumullahu Khairan.\n\n*${this.identitas.namaBendahara}*`;
+          window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(pesan)}`, '_blank');
+        },
+
+        handleSmartBillingMultiImport(event) {
+          const file = event.target.files[0];
+          if (!file) return;
+          const fileName = file.name.toLowerCase();
+
+          if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || fileName.endsWith('.csv')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const data = new Uint8Array(e.target.result);
+              const workbook = XLSX.read(data, { type: 'array' });
+              const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: '' });
+              rows.forEach((r, idx) => {
+                const nis = String(r['NIS'] || r['nis'] || '').trim();
+                if (nis) {
+                  this.santriList.push({
+                    id: Date.now() + idx,
+                    nis,
+                    nama: r['Nama'] || r['Nama Santri'] || 'Santri Baru',
+                    jenjang: r['Jenjang'] || 'MMTQ Putra',
+                    kelas: Number(r['Kelas'] || 1),
+                    namaWali: r['Nama Wali'] || 'Wali Santri',
+                    hpWali: String(r['No HP'] || r['HP'] || '081200000000'),
+                    besarIak: Number(r['Besar IAK'] || 500000),
+                    jumlahBulan: Number(r['Jml Bulan'] || 1),
+                    bulanMenunggak: r['Keterangan Bulan'] || 'Agustus',
+                    fuWa: 'Belum Dikirim',
+                    keterangan: 'Belum respon',
+                    tglJanjiBayar: '',
+                    mouCicilan: [],
+                    riwayatLog: []
+                  });
+                }
+              });
+              this.saveAllToStorage();
+              this.updateCharts();
+              this.tampilkanNotifikasi('Import Berhasil', `${rows.length} data santri berhasil diimpor.`);
+            };
+            reader.readAsArrayBuffer(file);
+          } else if (file.type.startsWith('image/')) {
+            this.ocrLoading = true;
+            this.ocrProgress = 0;
+            Tesseract.recognize(
+              file,
+              'ind',
+              {
+                logger: m => {
+                  if (m.status === 'recognizing text') {
+                    this.ocrProgress = Math.round(m.progress * 100);
+                  }
+                }
+              }
+            ).then(({ data: { text } }) => {
+              this.ocrLoading = false;
+              const lines = text.split('\n').filter(l => l.trim().length > 3);
+              alert("Dokumen berhasil dibaca oleh OCR:\n\n" + lines.slice(0, 5).join('\n') + "\n...\nTotal baris teks terbaca: " + lines.length);
+            }).catch(err => {
+              this.ocrLoading = false;
+              alert("Gagal membaca berkas gambar: " + err.message);
+            });
+          } else {
+            alert('Silakan unggah berkas spreadsheet (.xlsx/.xls/.csv) atau gambar bukti tagihan (.jpg/.png).');
+          }
+          event.target.value = '';
+        },
+
+        exportExcel() {
+          const data = this.santriList.map((s, idx) => ({
+            'No': idx + 1,
+            'NIS': s.nis,
+            'Nama Santri': s.nama,
+            'Jenjang': s.jenjang,
+            'Kelas': s.kelas,
+            'Nama Wali': s.namaWali,
+            'No. HP Wali': s.hpWali,
+            'Besar IAK': s.besarIak,
+            'Jml Bulan': s.jumlahBulan,
+            'Total Tunggakan': s.besarIak * s.jumlahBulan,
+            'Status': s.jumlahBulan === 0 ? 'Lunas' : 'Menunggak'
+          }));
+          const ws = XLSX.utils.json_to_sheet(data);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, "Tunggakan Santri");
+          XLSX.writeFile(wb, `Laporan_Tunggakan_${this.currentTenantId}_${this.selectedPeriode}.xlsx`);
+        },
+
+        eksporAuditLogExcel() {
+          const ws = XLSX.utils.json_to_sheet(this.daftarSemuaLogAktivitas);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, "Audit Log");
+          XLSX.writeFile(wb, `Audit_Log_${this.currentTenantId}.xlsx`);
+        },
+
+        downloadBackupJson() {
+          const fullData = {
+            tenant: this.currentTenantId,
+            santriList: this.santriList,
+            riwayatTransaksi: this.riwayatTransaksi,
+            identitas: this.identitas,
+            templateWa: this.templateWa
+          };
+          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fullData, null, 2));
+          const dlAnchor = document.createElement('a');
+          dlAnchor.setAttribute("href", dataStr);
+          dlAnchor.setAttribute("download", `Backup_${this.currentTenantId}_${new Date().toISOString().slice(0, 10)}.json`);
+          document.body.appendChild(dlAnchor);
+          dlAnchor.click();
+          dlAnchor.remove();
+        },
+
+        restoreBackupJson(event) {
+          const file = event.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const d = JSON.parse(e.target.result);
+              if (d.santriList) {
+                this.santriList = d.santriList;
+                if (d.riwayatTransaksi) this.riwayatTransaksi = d.riwayatTransaksi;
+                if (d.identitas) this.identitas = d.identitas;
+                this.saveAllToStorage();
+                this.updateCharts();
+                this.tampilkanNotifikasi('Pemulihan Berhasil', 'Data JSON berhasil dipulihkan.');
+              }
+            } catch(err) {
+              alert('File JSON tidak valid.');
+            }
+          };
+          reader.readAsText(file);
+          event.target.value = '';
+        },
+
+        downloadPPTXRapat() {
+          const pres = new PptxGenJS();
+          pres.layout = 'LAYOUT_16x9';
+          const slide1 = pres.addSlide();
+          slide1.background = { color: '064E3B' };
+          slide1.addText(this.identitas.namaMahad.toUpperCase(), { x: 0.8, y: 1.6, w: 11.7, fontSize: 24, bold: true, color: 'FFFFFF' });
+          slide1.addText("LAPORAN EVALUASI & REKAPITULASI TUNGGAKAN IAK / SPP", { x: 0.8, y: 2.4, w: 11.7, fontSize: 16, bold: true, color: 'A7F3D0' });
+          slide1.addText(`Periode Rapat: ${this.getNamaBulanPeriode(this.selectedPeriode)}`, { x: 0.8, y: 3.1, w: 11.7, fontSize: 13, color: 'E2E8F0' });
+          pres.writeFile({ fileName: `Laporan_Rapat_${this.selectedPeriode}.pptx` });
+        },
+
+        getNamaBulanPeriode(p) {
+          const map = { '2026-08': 'Agustus 2026', '2026-09': 'September 2026', '2026-10': 'Oktober 2026' };
+          return map[p] || p;
+        },
+
+        getTanggalHariIni() {
+          return new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+        },
+
+        changeMenu(m) {
+          this.activeMenu = m;
+          if (m === 'dashboard') this.$nextTick(() => this.updateCharts());
+        },
+
+        togglePresentationMode() {
+          this.isPresentationMode = !this.isPresentationMode;
+          this.activeMenu = 'dashboard';
+          this.$nextTick(() => this.updateCharts());
+        },
+
+        cetakLaporanPDF() {
+          window.print();
+        },
+
+        onPeriodeChange() {
+          this.updateCharts();
+        },
+
+        onSelectSantriTransaksi() {
+          const s = this.santriTerpilihTransaksi;
+          if (s) this.formTransaksi.nominal = s.besarIak;
+        },
+
+        initCharts() {
+          const ctxTrend = document.getElementById('chartTrendBulan');
+          if (ctxTrend) {
+            this.charts.trend = new Chart(ctxTrend, {
+              type: 'line',
+              data: {
+                labels: ['Mei', 'Juni', 'Juli', 'Agustus'],
+                datasets: [
+                  { label: 'Realisasi Masuk', data: [0, 0, 0, this.totalNominalTransaksi], borderColor: '#059669', tension: 0.3 },
+                  { label: 'Sisa Tunggakan', data: [0, 0, 0, this.statUmum.totalTunggakan], borderColor: '#e11d48', tension: 0.3 }
+                ]
+              },
+              options: { responsive: true, maintainAspectRatio: false }
+            });
+          }
+
+          const ctxKelas = document.getElementById('chartNominalKelas');
+          if (ctxKelas) {
+            this.charts.nominalKelas = new Chart(ctxKelas, {
+              type: 'bar',
+              data: {
+                labels: ['Kls 1', 'Kls 2', 'Kls 3', 'Kls 4', 'Kls 5', 'Kls 6'],
+                datasets: [{ label: 'Nominal', data: [0, 0, 0, 0, 0, 0], backgroundColor: '#2563eb' }]
+              },
+              options: { responsive: true, maintainAspectRatio: false }
+            });
+          }
+
+          const ctxStatus = document.getElementById('chartStatusProporsi');
+          if (ctxStatus) {
+            this.charts.statusProporsi = new Chart(ctxStatus, {
+              type: 'doughnut',
+              data: {
+                labels: ['Lunas', 'Nunggak 1 Bln', 'Nunggak 2-3 Bln', 'Nunggak >4 Bln'],
+                datasets: [{ data: [0, 0, 0, 0], backgroundColor: ['#059669', '#d97706', '#ea580c', '#dc2626'] }]
+              },
+              options: { responsive: true, maintainAspectRatio: false }
+            });
+          }
+
+          const ctxFuWa = document.getElementById('chartFuWaProgress');
+          if (ctxFuWa) {
+            this.charts.fuWaProgress = new Chart(ctxFuWa, {
+              type: 'bar',
+              data: {
+                labels: ['Sudah Bayar', 'Akan Bayar', 'Cicil/MOU', 'Belum Respon'],
+                datasets: [{ label: 'Santri', data: [0, 0, 0, 0], backgroundColor: '#059669' }]
+              },
+              options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y' }
+            });
+          }
+
+          this.updateCharts();
+        },
+
+        updateCharts() {
+          // 1. Update Chart Trend
+          if (this.charts.trend) {
+            this.charts.trend.data.datasets[0].data[3] = this.totalNominalTransaksi;
+            this.charts.trend.data.datasets[1].data[3] = this.statUmum.totalTunggakan;
+            this.charts.trend.update();
+          }
+
+          // 2. Update Nominal Per Kelas (1 - 6)
+          if (this.charts.nominalKelas) {
+            const perKelas = [1, 2, 3, 4, 5, 6].map(kls => {
+              return this.santriList
+                .filter(s => Number(s.kelas) === kls)
+                .reduce((sum, curr) => sum + (curr.besarIak * curr.jumlahBulan), 0);
+            });
+            this.charts.nominalKelas.data.datasets[0].data = perKelas;
+            this.charts.nominalKelas.update();
+          }
+
+          // 3. Update Proporsi Durasi Nunggak
+          if (this.charts.statusProporsi) {
+            const lunas = this.santriList.filter(s => s.jumlahBulan === 0).length;
+            const n1 = this.santriList.filter(s => s.jumlahBulan === 1).length;
+            const n23 = this.santriList.filter(s => s.jumlahBulan >= 2 && s.jumlahBulan <= 3).length;
+            const n4 = this.santriList.filter(s => s.jumlahBulan >= 4).length;
+            this.charts.statusProporsi.data.datasets[0].data = [lunas, n1, n23, n4];
+            this.charts.statusProporsi.update();
+          }
+
+          // 4. Update Progress FU WA
+          if (this.charts.fuWaProgress) {
+            const bayar = this.santriList.filter(s => s.keterangan === 'Sudah bayar').length;
+            const akan = this.santriList.filter(s => s.keterangan === 'Akan bayar').length;
+            const mou = this.santriList.filter(s => s.keterangan === 'Minta cicilan/MOU').length;
+            const belum = this.santriList.filter(s => s.keterangan === 'Belum respon').length;
+            this.charts.fuWaProgress.data.datasets[0].data = [bayar, akan, mou, belum];
+            this.charts.fuWaProgress.update();
+          }
+        }
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
